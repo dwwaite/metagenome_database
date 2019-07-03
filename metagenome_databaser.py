@@ -5,6 +5,8 @@
 
     python metagenome_databaser.py create -d asd.db -c test/contigs.fna
     python metagenome_databaser.py create -d asd.db -c test/contigs.fna --prodigal_aa test/genes_prod_aa.faa --prodigal_nt test/genes_prod_nt.fna
+
+    python metagenome_databaser.py create -d asd.db -c test/contigs.fna --rrna_ssu test/genes_metaxa_ssu.fna
 '''
 import sys, argparse
 
@@ -59,16 +61,13 @@ def create_database(db_name, arguments):
 
         ''' With the base created, add in any additional features provided '''
         if arguments.prodigal_aa or arguments.prodigal_nt:
-
             db_connection.add_genes_prodigal(aa_file=arguments.prodigal_aa, nt_file=arguments.prodigal_nt)
 
         if arguments.rrna_ssu:
-
-            pass
+            db_connection.add_genes_metaxa(arguments.rrna_ssu, 'SSU')
 
         if arguments.rrna_lsu:
-
-            pass
+            db_connection.add_genes_metaxa(arguments.rrna_lsu, 'LSU')
 
         if arguments.trna:
 

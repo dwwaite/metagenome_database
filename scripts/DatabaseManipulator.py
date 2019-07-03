@@ -62,6 +62,7 @@ class DatabaseManipulator():
 
             c.execute('''CREATE TABLE gene (genename TEXT PRIMARY KEY,
                                             contigname TEXT,
+                                            prediction_tool TEXT,
                                             sequence_nt TEXT,
                                             sequence_aa TEXT,
                                             length_nt INTEGER,
@@ -170,14 +171,14 @@ class DatabaseManipulator():
 
         self.conn.commit()
 
-    def _add_gene(self, gene_name, contig_name, sequence_nt, sequence_aa, length_nt, length_aa, start_pos, stop_pos, orientation):
+    def _add_gene(self, method, gene_name, contig_name, sequence_nt, sequence_aa, length_nt, length_aa, start_pos, stop_pos, orientation):
 
         c = self.conn.cursor()
 
         try:
 
-            c.execute( ''' INSERT INTO gene(genename, contigname, sequence_nt, sequence_aa, length_nt, length_aa, start, stop, orientation) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?) ''',
-                       (gene_name, contig_name, sequence_nt, sequence_aa, length_nt, length_aa, start_pos, stop_pos, orientation) )
+            c.execute( ''' INSERT INTO gene(genename, contigname, prediction_tool, sequence_nt, sequence_aa, length_nt, length_aa, start, stop, orientation) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ''',
+                       (gene_name, contig_name, method, sequence_nt, sequence_aa, length_nt, length_aa, start_pos, stop_pos, orientation) )
             self.conn.commit()
 
         except sqlite3.Error as e:
@@ -219,11 +220,32 @@ class DatabaseManipulator():
             contig_name = self._extract_prodigal_contig(key)
 
             start, stop, orientation = self._extract_prodigal_metadata(meta)
-            self._add_gene(key, contig_name, nt, aa, len(nt), len(aa), start, stop, orientation)
+            self._add_gene('Prodigal', key, contig_name, nt, aa, len(nt), len(aa), start, stop, orientation)
 
-    def  add_genes_metaxa():
+    def add_genes_metaxa(self, rrna_file, gene_type):
 
-        return 0
+        rna_predictions = self._parse_fasta(rrna_file, True)
+
+        for contig, (sequence, metadata) in rna_predictions.items():
+
+            ''' MeTaxa2 uses a | to denote the start of metadata, so my standard split won't work.
+                However, it only reports a single character before the first space, which is a single letter marking which taxa the prediction occured from '''
+            
+            *contig_name, taxa_flag = contig.split('|')
+            contig_name = '|'.join(contig_name)
+
+            gene_name = '{}_{}_{}'.format(contig_name, taxa_flag, gene_type)
+
+            ''' Find the start/stop/orientation values for the sequence.
+                Start by pulling the contig from the database. '''
+
+            #
+            # TO DO: Pull the contig sequence from the database to map values
+            #        Requires retrieval functions to be implemented
+            start = -1; stop = -1
+            orientation = 1 if metadata.split(' ')[-2] == 'main' else -1
+
+            self._add_gene('MeTaxa2', gene_name, contig_name, sequence, '', len(sequence), 0, start, stop, orientation)
 
     def add_genes_aragorn():
     
@@ -243,7 +265,7 @@ class DatabaseManipulator():
     '''
 
     def _gene_row_to_dict(self, _row):
-        return { n: r for n, r in zip( ['gene_name', 'contig_name', 'sequence_nt', 'sequence_aa', 'length_nt', 'length_aa', 'start_pos', 'stop_pos', 'orientation'],
+        return { n: r for n, r in zip( ['gene_name', 'contig_name', 'prediction_tool', 'sequence_nt', 'sequence_aa', 'length_nt', 'length_aa', 'start_pos', 'stop_pos', 'orientation'],
                                        _row ) }
 
     def _contig_row_to_dict(self, _row):
@@ -286,5 +308,16 @@ class DatabaseManipulator():
 
         gc_frac = float( nuclotide_counter['G'] + nuclotide_counter['C'] ) / sum( nuclotide_counter.values() )
         return gc_frac * 100
+
+    def _reverse_complement(self, sequence):
+
+        backmap = { 'A': 'T', 'T': 'A', 'G': 'C', 'C': 'G', 'N': 'N' }
+
+        rev_comp = [''] * len(sequence)
+
+        for i, nt in enumerate( list(sequence) ):
+            rev_comp[i] = backmap[nt]
+
+        return ''.join( rev_comp[::-1] )
 
     # endregion

@@ -12,6 +12,8 @@ class TestDatabaseManipulator(unittest.TestCase):
         # Create an in-memory database for testing purposes
         self.db_m = DatabaseManipulator(':memory:')
 
+    # region Test file creation
+
     def create_contigs_noheader(self, f_name):
         mock_fna = open(f_name, 'w')
         mock_fna.write( '>A\nATCG\n>B\nGCTA\n' )
@@ -44,6 +46,17 @@ class TestDatabaseManipulator(unittest.TestCase):
         self.push_to_fasta(f_name, exp_keys, exp_meta, exp_seq)
         return exp_keys, exp_meta, exp_seq
 
+    def create_metaxa_ssu(self, f_name):
+
+        exp_keys = ['contig1|B', 'contig2|E']
+        exp_meta = ['Predicted Bacterial SSU rRNA (34 bp) From domain V1l to V9r on main strand',
+                    'Predicted Eukaryotic SSU rRNA (23 bp) From domain V1l to V9r on complementary strand']
+        exp_seq = ['CGATCGATCGATCGATCGATCGATCGATCGATCG', 'TCGATCGATCGATCGATCGATCG']
+
+        self.push_to_fasta(f_name, exp_keys, exp_meta, exp_seq)
+        return exp_keys, exp_meta, exp_seq
+
+
     def push_to_fasta(self, f_name, seq_names, seq_meta, seq_values):
 
         mock_fna = open(f_name, 'w')
@@ -56,6 +69,8 @@ class TestDatabaseManipulator(unittest.TestCase):
     def remove_temp_file(self, f_name):
 
         os.remove(f_name)
+
+    # endregion
 
     # region Create and evaluate database
 
@@ -262,6 +277,27 @@ class TestDatabaseManipulator(unittest.TestCase):
         self.remove_temp_file(contigs_file_name)
         self.remove_temp_file(nt_file_name)
 
+    def test_add_genes_metaxa(self):
+
+        ''' Set up files for test '''
+        contigs_file_name = 'test_parse_fasta.fasta'
+        self.create_contigs_noheader(contigs_file_name)
+        file_name = 'mock.ssu.fna'
+        exp_keys, exp_meta, exp_seq = self.create_metaxa_ssu(file_name)
+
+        ''' Test '''
+        self.db_m.create_blank_database()
+        self.db_m.add_contigs(contigs_file_name)
+        self.db_m.add_genes_metaxa(file_name, 'SSU')
+
+        ''' Evaluate '''
+        c = self.db_m.conn.cursor()
+        c.execute("SELECT * FROM gene;")
+
+        for row in c.fetchall():
+
+            # FUNCTION-IZE THE GENE MAPPING SYSTEM, BECAUSE IT's GOING TO GET A LOT OF USE IN HERE...
+    
     # endregion
 
     # region Aux functions
@@ -323,6 +359,12 @@ class TestDatabaseManipulator(unittest.TestCase):
         self.assertEqual(stop, 25)
         self.assertEqual(orient, -1)
 
+    def test_reverse_complement(self):
+
+        seq = 'ATCGATNG'
+        rev = 'CNATCGAT'
+        self.assertEqual( self.db_m._reverse_complement(seq), rev )
+
     # endregion
 
     # region Row casting functions
@@ -332,7 +374,7 @@ class TestDatabaseManipulator(unittest.TestCase):
         mock_row = ('abc_1', 'abc', 'ATCGAT', 'ID', 6, 2, 1, 6, 1)
         gene_dict = self.db_m._gene_row_to_dict(mock_row)
 
-        for exp_key, val in zip(['gene_name', 'contig_name', 'sequence_nt', 'sequence_aa', 'length_nt', 'length_aa', 'start_pos', 'stop_pos', 'orientation'], mock_row):
+        for exp_key, val in zip(['gene_name', 'contig_name', 'prediction_tool', 'sequence_nt', 'sequence_aa', 'length_nt', 'length_aa', 'start_pos', 'stop_pos', 'orientation'], mock_row):
 
             self.assertTrue( exp_key in gene_dict )
             self.assertTrue( gene_dict[exp_key] == val )
