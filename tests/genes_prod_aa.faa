@@ -1,0 +1,8 @@
+>contig1_1 # 2 # 25 # 1 # ID=1_1;partial=00;start_type=ATG;rbs_motif=GGAG/GAGG;rbs_spacer=5-10bp;gc_cont=0.50
+SIDRSID*
+>contig1_2 # 4 # 46 # 1 # ID=1_1;partial=00;start_type=ATG;rbs_motif=GGAG/GAGG;rbs_spacer=5-10bp;gc_cont=0.50
+DRSIDRSIDRSIDR*
+>contig2_1 # 5 # 56 # -1 # ID=1_1;partial=00;start_type=ATG;rbs_motif=GGAG/GAGG;rbs_spacer=5-10bp;gc_cont=0.50
+SIDRSIDRSIDRSIDRS
+>contig3_1 # 25 # 46 # 1 # ID=1_1;partial=00;start_type=ATG;rbs_motif=GGAG/GAGG;rbs_spacer=5-10bp;gc_cont=0.50
+RSIDRSI
