@@ -286,11 +286,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         self.db_m.add_contigs(file_name)
 
         ''' Evaluate - try to add the contigs a second time '''
-        self.start_logging_stdout()
-        self.db_m.add_contigs(file_name)
+        with self.assertRaises(Exception) as cm:
+            self.db_m.add_contigs(file_name)
 
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'Duplicate entry detected', msg )
+        self.assertIn( 'Duplicate contig detected', str(cm.exception) )
 
         contig_df = self.db_m.get_contigs()
         self.assertEqual(contig_df.shape[0], len(exp_contigs) )
@@ -411,12 +410,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         mock_gene = self.create_mock_gene( 'xxx' )
 
         ''' Evaluate '''
-        self.start_logging_stdout()
-        success_state = self.db_m._validate_genes( [mock_gene] )
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_genes( [mock_gene] )
 
-        msg = self.stop_logging_stdout()
-        self.assertFalse( success_state )
-        self.assertIn( 'Gene {} is not linked to an existing contig. Aborting...'.format(mock_gene.name), msg )
+        self.assertIn( 'Gene {} is not linked to an existing contig. Aborting...'.format(mock_gene.name), str(cm.exception) )
 
     def test_validate_genes_badint(self):
 
@@ -427,12 +424,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         mock_gene._start = 'a'
 
         ''' Evaluate '''
-        self.start_logging_stdout()
-        success_state = self.db_m._validate_genes( [mock_gene] )
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_genes( [mock_gene] )
 
-        msg = self.stop_logging_stdout()
-        self.assertFalse( success_state )
-        self.assertIn( 'Error converting values to int in gene {}. Aborting...'.format(mock_gene.name), msg )
+        self.assertIn( 'Error converting values to int in gene {}. Aborting...'.format(mock_gene.name), str(cm.exception) )
 
     def test_validate_genes_duplicategene_exists(self):
 
@@ -442,13 +437,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         self.db_m._add_genes( [mock_gene] )
 
         ''' Evaluate - Fail is tested by adding the gene a second time '''
-        self.start_logging_stdout()
-        success_state = self.db_m._validate_genes( [mock_gene] )
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_genes( [mock_gene] )
 
-        msg = self.stop_logging_stdout()
-
-        self.assertFalse( success_state )
-        self.assertIn( 'Gene {} is already in the database. Aborting...'.format(mock_gene.name), msg )
+        self.assertIn( 'Gene {} is already in the database. Aborting...'.format(mock_gene.name), str(cm.exception) )
 
     def test_validate_genes_duplicategene_adding(self):
 
@@ -457,13 +449,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         mock_gene = self.create_mock_gene( 'xxx' )
 
         ''' Evaluate - Fail is tested by adding the gene a second time '''
-        self.start_logging_stdout()
-        success_state = self.db_m._validate_genes( [mock_gene, mock_gene] )
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_genes( [mock_gene, mock_gene] )
 
-        msg = self.stop_logging_stdout()
-
-        self.assertFalse( success_state )
-        self.assertIn( 'There are duplicate genes in the input file. Aborting...', msg )
+        self.assertIn( 'There are duplicate genes in the input file. Aborting...', str(cm.exception) )
 
     def test_add_genes(self):
 
@@ -715,11 +704,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         self.push_to_fasta(aa_file_name, aa_keys, aa_seq, seq_meta=aa_meta)
 
         ''' Test '''
-        self.start_logging_stdout()
-        self.db_m.add_genes_prodigal(aa_file=aa_file_name)
+        with self.assertRaises(Exception) as cm:
+            self.db_m.add_genes_prodigal(aa_file=aa_file_name)
 
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'Error converting values to int in gene {}. Aborting...'.format(aa_keys[0]), msg )
+        self.assertIn( 'Error converting values to int in gene {}. Aborting...'.format(aa_keys[0]), str(cm.exception) )
 
         genes_df = self.db_m.get_genes()
         self.assertEqual( genes_df.shape[0], 0 )
@@ -881,23 +869,11 @@ class TestDatabaseManipulator(unittest.TestCase):
         exp_dict = { k: (m, seq) for k, m, seq in zip(obs_keys, exp_meta, exp_seq) }
 
         ''' Evaluate '''
-        trna_input_str = '{},{}'.format('mock.contigs.fasta', aragorn_file_name)
-        self.db_m.add_genes_aragorn(trna_input_str)
+        #trna_input_str = '{},{}'.format('mock.contigs.fasta', aragorn_file_name)
+        self.db_m.add_genes_aragorn('mock.contigs.fasta', aragorn_file_name)
 
         gene_df = self.db_m.get_genes()
         self.assertEqual( gene_df.shape[0], len(exp_keys) )
-
-    def test_add_genes_aragorn_badinput(self):
-
-        ''' Test '''
-        trna_input_str = 'mock.contigs.fasta|mock.trna.fna'
-
-        ''' Evaluate '''
-        self.start_logging_stdout()
-        self.db_m.add_genes_aragorn(trna_input_str)
-
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'Unable to parse paired Aragorn files. Aborting...', msg )
 
     # endregion
 
@@ -945,29 +921,23 @@ class TestDatabaseManipulator(unittest.TestCase):
         mock_annotation._coverage = 'xxx'
 
         ''' Evaluate '''
-        self.start_logging_stdout()
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_annotations( [mock_annotation] )
 
-        success_state = self.db_m._validate_annotations( [mock_annotation] )
-        self.assertFalse(success_state)
-
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'Error converting values to float in gene {}. Aborting...'.format(mock_annotation.gene_name), msg )
+        self.assertIn( 'Error converting values to float in gene {}. Aborting...'.format(mock_annotation.gene_name), str(cm.exception) )
 
     def test_validate_annotations_missinggene(self):
 
         ''' Test '''
+        _ = self.create_database_for_gene()
         mock_annotation = Annotation(gene_name='xxx', method='test_method', annotation_database='test_db', accession='DW12345',
                                      identity=70.5, coverage=30.2, evalue=0.001, description='Random text goes here')
 
         ''' Evaluate '''
-        self.db_m.create_blank_database()
-        self.start_logging_stdout()
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_annotations( [mock_annotation] )
 
-        success_state = self.db_m._validate_annotations( [mock_annotation] )
-        self.assertFalse(success_state)
-
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'Annotation entry (method {}, database {}) is not matched to a valid gene (xxx). Aborting...'.format(mock_annotation.method, mock_annotation.annotation_database), msg )
+        self.assertIn( 'Annotation entry (method {}, database {}) is not matched to a valid gene (xxx). Aborting...'.format(mock_annotation.method, mock_annotation.annotation_database), str(cm.exception) )
 
     def test_add_annotation(self):
 
@@ -1115,11 +1085,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         self.push_to_table(annot_file_name, pd.DataFrame(fake_df_buffer))
 
         ''' Evaluate '''
-        self.start_logging_stdout()
-        self.db_m.add_annotations_by_table(annot_file_name)
+        with self.assertRaises(Exception) as cm:
+            self.db_m.add_annotations_by_table(annot_file_name)
 
-        msg = self.stop_logging_stdout()
-        self.assertIn('Aborting', msg)
+        self.assertIn( 'Aborting', str(cm.exception) )
 
     # endregion
 
@@ -1146,13 +1115,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         mock_mapping._reads_mapped = 'x'
 
         ''' Evaluate '''
-        self.start_logging_stdout()
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_mapping( [mock_mapping], target='contig' )
 
-        success_state = self.db_m._validate_mapping( [mock_mapping], target='contig' )
-        self.assertFalse(success_state)
-
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'Error converting contig mapping value to int in {}. Aborting...'.format(mock_mapping.target_name), msg )
+        self.assertIn( 'Error converting contig mapping value to int in {}. Aborting...'.format(mock_mapping.target_name), str(cm.exception) )
 
     def test_validate_mapping_contig_missingcontig(self):
 
@@ -1161,13 +1127,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         mock_mapping = self.create_mock_mapping( 'xxx' )
 
         ''' Evaluate '''
-        self.start_logging_stdout()
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_mapping( [mock_mapping], target='contig' )
 
-        success_state = self.db_m._validate_mapping( [mock_mapping], target='contig' )
-        self.assertFalse(success_state)
-
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'Record {} is not linked to an existing contig. Aborting...'.format(mock_mapping.target_name), msg )
+        self.assertIn( 'Record {} is not linked to an existing contig. Aborting...'.format(mock_mapping.target_name), str(cm.exception) )
 
     def test_add_coverage_table(self):
 
@@ -1199,11 +1162,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         self.push_to_table('mock.coverage.txt', coverage_df)
 
         ''' Evaluate '''
-        self.start_logging_stdout()
-        self.db_m.add_coverage_table('mock.coverage.txt')
+        with self.assertRaises(Exception) as cm:
+            self.db_m.add_coverage_table('mock.coverage.txt')
 
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'Record xxx is not linked to an existing contig. Aborting...', msg )
+        self.assertIn( 'Record xxx is not linked to an existing contig. Aborting...', str(cm.exception) )
 
         coverage_df = self.db_m.get_coverage()
         self.assertEqual( coverage_df.shape[0], 0 )
@@ -1255,13 +1217,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         mock_mapping._reads_mapped = 'x'
 
         ''' Evaluate '''
-        self.start_logging_stdout()
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_mapping( [mock_mapping], target='gene' )
 
-        success_state = self.db_m._validate_mapping( [mock_mapping], target='gene' )
-        self.assertFalse(success_state)
-
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'Error converting gene mapping value to int in {}. Aborting...'.format(mock_mapping.target_name), msg )
+        self.assertIn( 'Error converting gene mapping value to int in {}. Aborting...'.format(mock_mapping.target_name), str(cm.exception) )
  
     def test_validate_mapping_gene_missinggene(self):
 
@@ -1270,13 +1229,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         mock_mapping = self.create_mock_mapping( 'xxx' )
 
         ''' Evaluate '''
-        self.start_logging_stdout()
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_mapping( [mock_mapping], target='gene' )
 
-        success_state = self.db_m._validate_mapping( [mock_mapping], target='gene' )
-        self.assertFalse(success_state)
-
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'Record {} is not linked to an existing gene. Aborting...'.format(mock_mapping.target_name), msg )
+        self.assertIn( 'Record {} is not linked to an existing gene. Aborting...'.format(mock_mapping.target_name), str(cm.exception) )
 
     def test_add_transcript_table(self):
 
@@ -1305,11 +1261,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         self.push_to_table('mock.transcript.txt', transcript_df)
 
         ''' Evaluate '''
-        self.start_logging_stdout()
-        self.db_m.add_transcript_table('mock.transcript.txt')
+        with self.assertRaises(Exception) as cm:
+            self.db_m.add_transcript_table('mock.transcript.txt')
 
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'Record xxx is not linked to an existing gene. Aborting...', msg )
+        self.assertIn( 'Record xxx is not linked to an existing gene. Aborting...', str(cm.exception) )
 
         transcript_df = self.db_m.get_transcript()
         self.assertEqual( transcript_df.shape[0], 0 )
@@ -1389,13 +1344,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         mock_bin._completeness = 'x'
 
         ''' Evaluate '''
-        self.start_logging_stdout()
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_bins( [mock_bin] )
 
-        success_state = self.db_m._validate_bins( [mock_bin] )
-        self.assertFalse(success_state)
-
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'Error converting values to float in bin {}. Aborting...'.format(mock_bin.name), msg )
+        self.assertIn( 'Error converting values to float in bin {}. Aborting...'.format(mock_bin.name), str(cm.exception) )
 
     def test_validate_bins_duplicateentry_db(self):
 
@@ -1406,13 +1358,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         self.db_m._add_bins( [mock_bin] )
 
         ''' Evaluate '''
-        self.start_logging_stdout()
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_bins( [mock_bin] )
 
-        success_state = self.db_m._validate_bins( [mock_bin] )
-        self.assertFalse(success_state)
-
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'Duplicate entry for bin {} detected. Aborting...'.format(mock_bin.name), msg )
+        self.assertIn( 'Duplicate entry for bin {} detected. Aborting...'.format(mock_bin.name), str(cm.exception) )
 
     def test_validate_bins_duplicateentry_file(self):
 
@@ -1421,13 +1370,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         mock_bin = self.create_mock_bin()
 
         ''' Evaluate '''
-        self.start_logging_stdout()
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_bins( [mock_bin, mock_bin] )
 
-        success_state = self.db_m._validate_bins( [mock_bin, mock_bin] )
-        self.assertFalse(success_state)
-
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'There are duplicate bins in the input file. Aborting...', msg )
+        self.assertIn( 'There are duplicate bins in the input file. Aborting...', str(cm.exception) )
 
     def test_index_contig_folder(self):
 
@@ -1469,13 +1415,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         mock_dict = { mock_bin.name: contigs }
 
         ''' Evaluate '''
-        self.start_logging_stdout()
+        with self.assertRaises(Exception) as cm:
+            self.db_m._validate_contig_binning( [mock_bin], mock_dict )
 
-        success_state = self.db_m._validate_contig_binning( [mock_bin], mock_dict )
-        self.assertFalse(success_state)
-
-        msg = self.stop_logging_stdout()
-        self.assertIn( 'The contig xxx in bin {} does not exist in the database. Aborting...'.format(mock_bin.name), msg )
+        self.assertIn( 'The contig xxx in bin {} does not exist in the database. Aborting...'.format(mock_bin.name), str(cm.exception) )
 
     def test_add_bin_table(self):
 
@@ -1486,11 +1429,12 @@ class TestDatabaseManipulator(unittest.TestCase):
         file_name = 'mock.binning_table.txt'
         self.create_dummy_bintable(file_name, [mock_bin])
 
-        self.make_directory('mock_bin_files/')
-        self.push_to_fasta('mock_bin_files/{}.fasta'.format(mock_bin.name), contigs, ['aaa', 'ttt', 'ccc'])
+        dir_name = 'mock_bin_files'
+        self.make_directory(dir_name)
+        self.push_to_fasta('{}/{}.fasta'.format(dir_name, mock_bin.name), contigs, ['aaa', 'ttt', 'ccc'])
 
         ''' Evaluate '''
-        self.db_m.add_bin_table(file_name, 'mock_bin_files/')
+        self.db_m.add_bin_table(file_name, dir_name)
         bin_df = self.db_m.get_all_bins()
 
         self.assertEqual( bin_df.shape[0], 1 )
@@ -1513,8 +1457,9 @@ class TestDatabaseManipulator(unittest.TestCase):
         file_name = 'mock.binning_table.txt'
         self.create_dummy_bintable(file_name, [mock_bin])
 
-        self.make_directory('mock_bin_files/')
-        self.push_to_fasta('mock_bin_files/{}.fasta'.format(mock_bin.name), contigs, ['aaa', 'ttt', 'ccc'])
+        dir_name = 'mock_bin_files'
+        self.make_directory(dir_name)
+        self.push_to_fasta('{}/{}.fasta'.format(dir_name, mock_bin.name), contigs, ['aaa', 'ttt', 'ccc'])
 
         ''' Set the completeness to a string value '''
         df = pd.read_csv(file_name, sep='\t')
@@ -1522,11 +1467,10 @@ class TestDatabaseManipulator(unittest.TestCase):
         df.to_csv(file_name, sep='\t', index=False)
 
         ''' Evaluate '''
-        self.start_logging_stdout()
-        self.db_m.add_bin_table(file_name, 'mock_bin_files/')
+        with self.assertRaises(Exception) as cm:
+            self.db_m.add_bin_table(file_name, dir_name)
 
-        msg = self.stop_logging_stdout()
-        self.assertIn('Error converting values to float in bin', msg)
+        self.assertIn( 'Error converting values to float in bin', str(cm.exception) )
 
         bin_df = self.db_m.get_all_bins()
         self.assertEqual( bin_df.shape[0], 0)

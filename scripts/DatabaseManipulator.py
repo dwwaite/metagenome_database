@@ -159,8 +159,7 @@ class DatabaseManipulator():
                           [ (c.name, c.sequence, c.length, c.gc) for c in contig_data ] )
 
         else:
-
-            print( 'Duplicate entry detected ({}). Aborting...'.format(contig_data) )
+            raise Exception('Duplicate contig detected ({}). Aborting...'.format(contig_data) )
 
     def _obtain_contig_set(self):
 
@@ -203,29 +202,23 @@ class DatabaseManipulator():
         current_contigs = self._obtain_contig_set()
         current_genes = self._obtain_gene_set()
 
-        success_state = True
-
         exp_genes = set( [ gene.name for gene in gene_list ] )
         if len(exp_genes) < len(gene_list):
-            print( 'There are duplicate genes in the input file. Aborting...' )
-            success_state = False
+            raise Exception( 'There are duplicate genes in the input file. Aborting...' )
 
         for gene in gene_list:
 
             ints_are_valid, _ = self._cast_as_ints( (gene.length_nt, gene.length_aa, gene.start, gene.stop, gene.orientation) )
             if not ints_are_valid:
-                print( 'Error converting values to int in gene {}. Aborting...'.format(gene.name) )
-                success_state = False
+                raise Exception( 'Error converting values to int in gene {}. Aborting...'.format(gene.name) )
 
             if not gene.contig_name in current_contigs:
-                print( 'Gene {} is not linked to an existing contig. Aborting...'.format(gene.name) )
-                success_state = False
+                raise Exception( 'Gene {} is not linked to an existing contig. Aborting...'.format(gene.name) )
 
             if gene.name in current_genes:
-                print( 'Gene {} is already in the database. Aborting...'.format(gene.name) )
-                success_state = False
+                raise Exception( 'Gene {} is already in the database. Aborting...'.format(gene.name) )
 
-        return success_state
+        return True
 
     def _add_genes(self, gene_list):
 
@@ -285,11 +278,12 @@ class DatabaseManipulator():
                              start=start, stop=stop, orientation=orientation)
             gene_buffer.append( prod_gene )
 
-        ''' Validate the genes, if they pass, add them. '''
+        ''' Validate the genes, if they pass, add them.  '''
         genes_are_valid = self._validate_genes( gene_buffer )
 
         if genes_are_valid:
             self._add_genes( gene_buffer )
+
 
     # endregion
 
@@ -330,7 +324,7 @@ class DatabaseManipulator():
 
     def add_genes_metaxa(self, rrna_file, gene_type):
 
-        ''' To begin, parse the file into a lis of gene tuples. Create a matching annotation to go with each rRNA gene '''
+        ''' To begin, parse the file into a list of gene tuples. Create a matching annotation to go with each rRNA gene '''
 
         rna_predictions = self._parse_fasta(rrna_file, True)
 
@@ -404,18 +398,11 @@ class DatabaseManipulator():
         else:
             return 'not numeric'
 
-    def add_genes_aragorn(self, trna_str):
+    def add_genes_aragorn(self, trna_contigs, trna_predictions):
     
         ''' Aragorn is a bit tricky, predictions are named according to the order of input contigs, but are relabeled using
             [contig#]-[gene#] pairs.
             This means I need an ordered copy of the contigs file used during prediction '''
-
-        if not ',' in trna_str:
-            print('Unable to parse paired Aragorn files. Aborting...')
-            return
-
-        trna_contigs, trna_predictions = trna_str.split(',')
-
         trna_sequence = self._read_contig_sequence(trna_contigs, False)
         trna_predictions = self._parse_fasta(trna_predictions, True)
 
@@ -470,20 +457,16 @@ class DatabaseManipulator():
 
         current_genes = self._obtain_gene_set()
 
-        success_state = True
-
         for annotation in annotatation_list:
 
             floats_are_valid, _ = self._cast_as_floats( (annotation.identity, annotation.coverage, annotation.evalue) )
             if not floats_are_valid:
-                print( 'Error converting values to float in gene {}. Aborting...'.format(annotation.gene_name) )
-                success_state = False
+                raise Exception( 'Error converting values to float in gene {}. Aborting...'.format(annotation.gene_name) )
 
             if not annotation.gene_name in current_genes:
-                print( 'Annotation entry (method {}, database {}) is not matched to a valid gene ({}). Aborting...'.format(annotation.method, annotation.annotation_database, annotation.gene_name) )
-                success_state = False
+                raise Exception( 'Annotation entry (method {}, database {}) is not matched to a valid gene ({}). Aborting...'.format(annotation.method, annotation.annotation_database, annotation.gene_name) )
 
-        return success_state
+        return True
 
     def _add_annotations(self, annotatation_list):
 
@@ -508,8 +491,7 @@ class DatabaseManipulator():
 
         ''' If there is a problem with the table, report it and abort the process. '''
         if not table_is_valid:
-            print( 'Unable to find column {} in table {}. Aborting...'.format(col_err, annotation_table) )
-            return
+            raise Exception( 'Unable to find column {} in table {}. Aborting...'.format(col_err, annotation_table) )
 
         ''' Create annotation tuples from the DataFrame rows '''
         annotation_buffer = []
@@ -535,20 +517,16 @@ class DatabaseManipulator():
         elif target == 'gene':
             current_targets = self._obtain_gene_set()
 
-        success_state = True
-
         for mapping_record in mapping_list:
 
             ints_are_valid, _ = self._cast_as_ints( (mapping_record.reads_mapped, ) )
             if not ints_are_valid:
-                print( 'Error converting {} mapping value to int in {}. Aborting...'.format(target, mapping_record.target_name) )
-                success_state = False
+                raise Exception( 'Error converting {} mapping value to int in {}. Aborting...'.format(target, mapping_record.target_name) )
 
             if not mapping_record.target_name in current_targets:
-                print( 'Record {} is not linked to an existing {}. Aborting...'.format(mapping_record.target_name, target) )
-                success_state = False
+                raise Exception( 'Record {} is not linked to an existing {}. Aborting...'.format(mapping_record.target_name, target) )
 
-        return success_state
+        return True
 
     def _add_coverages(self, mapping_list):
 
@@ -639,32 +617,25 @@ class DatabaseManipulator():
 
         current_bins = self._obtain_bin_set()
 
-        success_state = True
-
         ''' Check for duplicates in the input file '''
         exp_bins = set( [ b.name for b in bin_list ] )
         if len(exp_bins) < len(bin_list):
-            print( 'There are duplicate bins in the input file. Aborting...' )
-            success_state = False
+            raise Exception( 'There are duplicate bins in the input file. Aborting...' )
 
         for b in bin_list:
 
             floats_are_valid, _ = self._cast_as_floats( (b.completeness, b.contamination, b.strain_heterogeneity) )
             if not floats_are_valid:
-                print( 'Error converting values to float in bin {}. Aborting...'.format(b.name) )
-                success_state = False
+                raise Exception( 'Error converting values to float in bin {}. Aborting...'.format(b.name) )
             
             if b.name in current_bins:
-                print( 'Duplicate entry for bin {} detected. Aborting...'.format(b.name) )
-                success_state = False
+                raise Exception( 'Duplicate entry for bin {} detected. Aborting...'.format(b.name) )
 
-        return success_state
+        return True
 
     def _validate_contig_binning(self, bin_list, contig_binning_dict):
 
         current_contigs = self._obtain_contig_set()
-
-        success_state = True
 
         for b in bin_list:
 
@@ -672,10 +643,9 @@ class DatabaseManipulator():
 
             invalid_contigs = contig_selection - current_contigs
             if len(invalid_contigs) > 0:
-                print( 'The contig {} in bin {} does not exist in the database. Aborting...'.format( ','.join(invalid_contigs), b.name) )
-                success_state = False
+                raise Exception( 'The contig {} in bin {} does not exist in the database. Aborting...'.format( ','.join(invalid_contigs), b.name) )
 
-        return success_state
+        return True
 
     def _index_contig_folder(self, contig_folder):
 
