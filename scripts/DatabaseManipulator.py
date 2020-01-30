@@ -150,16 +150,12 @@ class DatabaseManipulator():
 
     def add_contigs(self, contig_file):
 
-        entry_valid, contig_data = self._validate_contigs(contig_file)
+        ''' Error is raised in the _validate_contigs() function, so no flow control here for bad values. '''
+        contig_data = self._validate_contigs(contig_file)
 
-        if entry_valid:
-
-            c = self.conn.cursor()
-            c.executemany('INSERT INTO contig(contigname, sequence, length, gc) VALUES(?, ?, ?, ?)',
+        c = self.conn.cursor()
+        c.executemany('INSERT INTO contig(contigname, sequence, length, gc) VALUES(?, ?, ?, ?)',
                           [ (c.name, c.sequence, c.length, c.gc) for c in contig_data ] )
-
-        else:
-            raise Exception('Duplicate contig detected ({}). Aborting...'.format(contig_data) )
 
     def _obtain_contig_set(self):
 
@@ -172,8 +168,6 @@ class DatabaseManipulator():
         contig_buffer = []
         current_contig_set = self._obtain_contig_set()
 
-        success_state = True
-
         for name, sequence in self._parse_fasta(contig_file, False).items():
 
             ''' Polish the contig name '''
@@ -181,11 +175,11 @@ class DatabaseManipulator():
                 name = name.split(' ')[0]
 
             if name in current_contig_set:
-                success_state = False
+                raise Exception('Duplicate contig detected ({}). Aborting...'.format(name))
 
             contig_buffer.append( Contig(name, sequence) )
 
-        return success_state, contig_buffer
+        return contig_buffer
 
     # endregion
 

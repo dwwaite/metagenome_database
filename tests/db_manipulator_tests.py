@@ -251,8 +251,7 @@ class TestDatabaseManipulator(unittest.TestCase):
         self.db_m.create_blank_database()
 
         ''' Evaluate '''
-        success_state, result_buffer = self.db_m._validate_contigs(file_name)
-        self.assertTrue( success_state )
+        result_buffer = self.db_m._validate_contigs(file_name)
 
         for obs_contig in result_buffer:
 
@@ -262,19 +261,6 @@ class TestDatabaseManipulator(unittest.TestCase):
             self.assertEqual( obs_contig.sequence, exp_contig.sequence )  
             self.assertEqual( obs_contig.length, exp_contig.length )
             self.assertEqual( obs_contig.gc, exp_contig.gc )
-
-    def test_validate_contigs_duplicate(self):
-
-        ''' Set up files for test '''
-        file_name = 'mock.contigs.fasta'
-        _ = self.create_contigs_file(file_name)
-
-        self.db_m.create_blank_database()
-        self.db_m.add_contigs(file_name)
-
-        ''' Evaluate '''
-        success_state, _ = self.db_m._validate_contigs(file_name)
-        self.assertFalse( success_state )
 
     def test_add_contig_alreadyexists(self):
 
