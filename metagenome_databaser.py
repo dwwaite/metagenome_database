@@ -17,13 +17,12 @@ def main():
 
     # Creation subparser
     parser_create = subparser.add_parser('create', help='Create the basic database file and populate with contigs')
-
     parser_create.add_argument('-d', '--db', help='Database name', required=True)
-    parser_create.add_argument('-c', '--contig', help='Assembled contig or scaffold file for basing the database', required=True)
 
     # Add subparser
     parser_add = subparser.add_parser('add', help='Add entries to an existing database')
     parser_add.add_argument('-d', '--db', help='Database name', required=True)
+    parser_add.add_argument('-c', '--contig', help='Assembled contig or scaffold file for basing the database', required=False)
     parser_add.add_argument('--prodigal_aa', help='Genes (amino acids) predicted using prodigal', required=False)
     parser_add.add_argument('--prodigal_nt', help='Genes (nucleotide) predicted using prodigal', required=False)
     parser_add.add_argument('--rrna_ssu', help='Small subunit (16S, 18S) rRNA gene fasta file, predicted by MeTaxa2', required=False)
@@ -37,26 +36,24 @@ def main():
 
     ''' Process flow control '''
     if args.command == 'create':
-        create_database(args.db, args)
+        create_database(args.db)
 
 ###############################################################################
 #
 # Parse the user parameters into commands to the DatabaseManipulator
 #
 
-def create_database(db_name, arguments):
+def create_database(db_name):
 
         ''' Open a connection and create the blank tables '''
         db_connection = DatabaseManipulator(db_name)
 
         status, msg = db_connection.create_blank_database()
 
-        if status < 0:
+        if status != 1:
             print(msg)
-            sys.exit()
 
-        ''' No errors reported, load in the contigs '''
-        db_connection.add_contigs(arguments.contig)
+        db_connection.close_connection()
 
 def add_features():
     pass
