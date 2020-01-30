@@ -14,9 +14,13 @@ cursor.execute("SELECT * FROM contig;")
 print(cursor.fetchall())
 
 '''
-import sys, argparse, os, io
+import sys
+import argparse
+import os
+import io
 import unittest
 import sqlite3
+from functools import reduce
 import pandas as pd
 
 class TestFrontend(unittest.TestCase):
@@ -58,9 +62,6 @@ class TestFrontend(unittest.TestCase):
         ''' Evaluate '''
         self.assertTrue( os.path.exists(database_name) )
 
-        ''' Tidy up '''
-        os.remove(database_name)
-
     def test_create_database_already_exists(self):
 
         ''' Make sure that if a database already exists, the correct error is reported.
@@ -81,10 +82,40 @@ class TestFrontend(unittest.TestCase):
 
     #region Add
 
-    """
+    def test_add_features(self):
+
+        ''' Won't test this exhaustively, since individual unit tests already ensure these functions work as expected.
+            Just to a simple pair of contig/gene additions to ensure the dependency is satisfied. '''
+
+        database_name = self.create_database()
+
+        fe_add_features(database_name, contig_file='contigs.fna', aa_file='genes_prod_aa.faa')
+
+        ''' Evaluate '''
         db_m = DatabaseManipulator(database_name)
+
         contig_df = db_m.get_contigs()
-    """
+        self.assertEqual( contig_df.shape[0], 3 )
+
+        gene_df = db_m.get_genes()
+        self.assertEqual( gene_df.shape[0], 4 )
+
+    def test_add_features_failed_dependencies(self):
+
+        database_name = self.create_database()
+        gene_names = ['contig1_1', 'contig1_2', 'contig2_1', 'contig3_1']
+
+        ''' Evaluate '''
+        self.start_logging_stdout()
+        fe_add_features(database_name, aa_file='genes_prod_aa.faa')
+
+        msg = self.stop_logging_stdout()
+        err_mask = [ 'Gene {} is not linked to an existing contig. Aborting...'.format(g) in msg for g in gene_names ]
+        self.assertTrue( reduce(lambda a, b : a or b, err_mask) )
+
+        db_m = DatabaseManipulator(database_name)
+        gene_df = db_m.get_genes()
+        self.assertEqual( gene_df.shape[0], 0 )
 
     #endregion
 
@@ -94,6 +125,7 @@ if __name__ == '__main__':
         When importing front-end functions, alias them with the fe_ prefix, so that it's easy to spot them in code '''
     sys.path.insert(0, '..')
     from metagenome_databaser import create_database as fe_create_database
+    from metagenome_databaser import add_features as fe_add_features
     from scripts.DatabaseManipulator import DatabaseManipulator
 
     unittest.main()
