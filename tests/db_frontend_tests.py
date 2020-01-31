@@ -20,6 +20,7 @@ import os
 import io
 import unittest
 import sqlite3
+import time
 from functools import reduce
 import pandas as pd
 
@@ -31,7 +32,9 @@ class TestFrontend(unittest.TestCase):
         self.temp_file_buffer = []
 
     def tearDown(self):
-        _ = [ os.remove(temp_file) for temp_file in self.temp_file_buffer if os.path.exists(temp_file) ]                
+        ''' Add a small delay, to make sure the database connection has closed before removing the file '''
+        time.sleep(0.5)
+        _ = [ os.remove(temp_file) for temp_file in self.temp_file_buffer if os.path.exists(temp_file) ]               
 
     def start_logging_stdout(self):
         self.print_capture = io.StringIO()
@@ -81,15 +84,24 @@ class TestFrontend(unittest.TestCase):
     #endregion
 
     #region Add
+    
+    def create_blank_params(self):
+        return { 'contig': None, 'prodigal_aa': None, 'prodigal_nt': None,
+                 'rrna_ssu': None, 'rrna_lsu': None, 'trna': None, 'trna_meta': None,
+                 'annotations': None, 'coverage': None, 'transcript': None, 'bin_file': None, 'bin_dir': None }
 
     def test_add_features(self):
 
         ''' Won't test this exhaustively, since individual unit tests already ensure these functions work as expected.
             Just to a simple pair of contig/gene additions to ensure the dependency is satisfied. '''
 
+        ''' Set up the database and params dict '''
         database_name = self.create_database()
+        params = self.create_blank_params()
+        params['contig'] = 'contigs.fna'
+        params['prodigal_aa'] = 'genes_prod_aa.faa'
 
-        fe_add_features(database_name, contig_file='contigs.fna', aa_file='genes_prod_aa.faa')
+        fe_add_features(database_name, params )
 
         ''' Evaluate '''
         db_m = DatabaseManipulator(database_name)
@@ -102,20 +114,39 @@ class TestFrontend(unittest.TestCase):
 
     def test_add_features_failed_dependencies(self):
 
+        ''' Set up the database and params dict '''
         database_name = self.create_database()
-        gene_names = ['contig1_1', 'contig1_2', 'contig2_1', 'contig3_1']
+        params = self.create_blank_params()
+        params['prodigal_aa'] = 'genes_prod_aa.faa'
 
         ''' Evaluate '''
         self.start_logging_stdout()
-        fe_add_features(database_name, aa_file='genes_prod_aa.faa')
+        fe_add_features(database_name, params)
 
         msg = self.stop_logging_stdout()
+        gene_names = ['contig1_1', 'contig1_2', 'contig2_1', 'contig3_1']
+
         err_mask = [ 'Gene {} is not linked to an existing contig. Aborting...'.format(g) in msg for g in gene_names ]
         self.assertTrue( reduce(lambda a, b : a or b, err_mask) )
 
         db_m = DatabaseManipulator(database_name)
         gene_df = db_m.get_genes()
         self.assertEqual( gene_df.shape[0], 0 )
+
+    def test_add_trna_missing_param(self):
+
+        ''' Set up the database and params dict '''
+        database_name = self.create_database()
+        params = self.create_blank_params()
+        params['contig'] = 'contigs.fna'
+        params['trna'] = 'genes_trna.fna'
+
+        ''' Evaluate '''
+        self.start_logging_stdout()
+        fe_add_features(database_name, params )
+
+        msg = self.stop_logging_stdout()
+        self.assertIn( 'Missing required input parameters for tRNA annotation, please check input options.', msg )
 
     #endregion
 
