@@ -1,13 +1,11 @@
 '''
     Front end for metagenome databasing tool.
-
     Only used to parse user commands, then pass the result on to the appropriate pipeline.
-
-    python metagenome_databaser.py create -d asd.db -c tests/contigs.fna
 '''
 import sys, argparse
 
 from scripts.DatabaseManipulator import DatabaseManipulator
+from scripts.DatabaseExportFactory import DatabaseExportFactory as export_factory
 
 def main():
 
@@ -28,7 +26,7 @@ def main():
     parser_add.add_argument('--rrna_ssu', help='Small subunit (16S, 18S) rRNA gene fasta file, predicted by MeTaxa2. Automatically creates annotations.', required=False)
     parser_add.add_argument('--rrna_lsu', help='Large subunit (23S, 28S) rRNA gene fasta file, predicted by MeTaxa2. Automatically creates annotations.', required=False)
     parser_add.add_argument('--trna', help='Transfer RNA (tRNA) gene fasta file, predicted by Aragorn. Automatically creates annotations.', required=False)
-    parser_add.add_argument('--trna_meta', help='Metadata file to pair with Aragorn prediction file. This is required for adding tRNA records.', required=False)
+    parser_add.add_argument('--trna_contigs', help='The contigs file used in Aragorn prediction. This is required for adding tRNA records.', required=False)
     parser_add.add_argument('--annotations', help='Annotation table for genes present in the database', required=False)
     parser_add.add_argument('--coverage', help='Coverage table for contigs present in the database', required=False)
     parser_add.add_argument('--transcript', help='Transcription/expression table for genes present in the database', required=False)
@@ -38,16 +36,18 @@ def main():
     # Export subparser
     parser_export = subparser.add_parser('export', help='Retrieve entries from an existing database.')
     parser_export.add_argument('-d', '--db', help='Database name', required=True)
-    parser_export.add_argument('-o', '--output', help='Target file name for export. Feature-specific suffixes will be appended to this value', required=True)
+    parser_export.add_argument('-o', '--output', help='Target file handle for export. Feature-specific suffixes will be appended to this value', required=True)
     parser_export.add_argument('--seqs_as_tables', help='Export contigs or genes as tables instead of fasta files (Default: False)', action='store_true', required=False)
-    parser_export.add_argument('--contig', help='Export all contigs', action='store_true', required=False) #get_contigs
-    parser_export.add_argument('--gene', help='Export all genes', action='store_true', required=False) #get_contigs
-    parser_export.add_argument('--annotation', help='Export annotations associated with a set of genes. Requires a text file of gene names', required=False) #get_contigs
-    parser_export.add_argument('--coverage', help='Export all contig coverage values in the database', action='store_true', required=False) #get_contigs
-    parser_export.add_argument('--coverage_by_sample', help='Export all contig coverage values found in a set of samples. Requires a text file of sample names', required=False) #get_contigs
-    parser_export.add_argument('--transcript', help='Export all gene expression values in the database', action='store_true', required=False) #get_contigs
-    parser_export.add_argument('--transcript_by_sample', help='Export all gene expression values found in a set of samples. Requires a text file of sample names', required=False) #get_contigs
-    parser_export.add_argument('--bin', help='Export contigs, genes, and annotations associated with a bin. Requires a text file of bin names', required=False) #get_contigs
+    parser_export.add_argument('--all_records', help='Export all annotation records. (Default: Current version only)', action='store_true', required=False)
+    parser_export.add_argument('--contig', help='Export all contigs', action='store_true', required=False)
+    parser_export.add_argument('--gene', help='Export all genes', action='store_true', required=False)
+    parser_export.add_argument('--gene_by_method', help='Export all genes predicted using a particular tool', required=False)
+    parser_export.add_argument('--annotation', help='Export annotations associated with a set of genes', action='store_true', required=False)
+    parser_export.add_argument('--coverage', help='Export all contig coverage values in the database', action='store_true', required=False)
+    parser_export.add_argument('--transcript', help='Export all gene expression values in the database', action='store_true', required=False)
+    parser_export.add_argument('--bin', help='Export contigs, genes, and current annotations associated with the current bin set', action='store_true', required=False)
+    parser_export.add_argument('--bin_all', help='Export contigs, genes, and current annotations associated with all bins', action='store_true', required=False)
+    parser_export.add_argument('--bin_by_version', help='Export contigs, genes, and current annotations associated with bins of a user-specifed binning version', required=False)
 
     # Remove/delete subparser
     #parser_remove = subparser.add_parser('remove', help='Remove entries from an existing database')
@@ -69,7 +69,7 @@ def main():
         add_features(args.db, vars(args) )
 
     elif args.command == 'export':
-        pass
+        export_data(args.db, args.output, vars(args) )
 
 ###############################################################################
 #
@@ -101,14 +101,14 @@ def add_features(db_name, add_params):
 
         if add_params['prodigal_aa'] or add_params['prodigal_nt']: db_connection.add_genes_prodigal(aa_file=add_params['prodigal_aa'], nt_file=add_params['prodigal_nt'])
 
-        if add_params['rrna_ssu']: db_connection.add_genes_metaxa(wargs['rrna_ssu'], 'SSU')
+        if add_params['rrna_ssu']: db_connection.add_genes_metaxa(add_params['rrna_ssu'], 'SSU')
 
         if add_params['rrna_lsu']: db_connection.add_genes_metaxa(add_params['rrna_lsu'], 'LSU')
 
-        if add_params['trna'] and add_params['trna_meta']:
-            db_connection.create_aragorn_trna(add_params['trna'], add_params['trna_meta'])
-        elif add_params['trna'] or add_params['trna_meta']:
-            print('Missing required input parameters for tRNA annotation, please check input options.')
+        if add_params['trna'] and add_params['trna_contigs']:
+            db_connection.add_genes_aragorn(add_params['trna_contigs'], add_params['trna'])
+        elif add_params['trna'] or add_params['trna_contigs']:
+            print('Missing contig file required for tRNA annotation, please check input options.')
 
         if add_params['annotations']: db_connection.add_annotations_by_table(add_params['annotations'])
 
@@ -125,24 +125,55 @@ def add_features(db_name, add_params):
         db_connection.close_connection()
 
     except Exception as e:
-
+        db_connection.conn.rollback()
         print(e)
 
-'''
---seqs_as_tables', help='Export contigs or genes as tables instead of fasta files (Default: False)', action='store_true', required=False)
-    parser_export.add_argument('--contig', help='Export all contigs', action='store_true', required=False) #get_contigs
-    parser_export.add_argument('--gene', help='Export all genes', action='store_true', required=False) #get_contigs
-    parser_export.add_argument('--annotation', help='Export annotations associated with a set of genes. Requires a text file of gene names', required=False) #get_contigs
-    parser_export.add_argument('--coverage', help='Export all contig coverage values in the database', action='store_true', required=False) #get_contigs
-    parser_export.add_argument('--coverage_by_sample', help='Export all contig coverage values found in a set of samples. Requires a text file of sample names', required=False) #get_contigs
-    parser_export.add_argument('--transcript', help='Export all gene expression values in the database', action='store_true', required=False) #get_contigs
-    parser_export.add_argument('--transcript_by_sample', help='Export all gene expression values found in a set of samples. Requires a text file of sample names', required=False) #get_contigs
-    parser_export.add_argument('--bin', help='Expo
-'''
-def export_data(db_name, output_prefix, export_contigs=None, export_genes=None, export_annotations=None, export_coverage=None, export_cov_by_sample=None, export_transcript=None, export_transcript_by_sample=None):
+def export_data(db_name, output_prefix, export_params):
 
+    #try:
 
-    return
+    db_connection = DatabaseManipulator(db_name)
+
+    if export_params['contig']:
+        contig_df = db_connection.get_contigs()
+        export_factory.contig_export(contig_df, output_prefix, export_params['seqs_as_tables'])
+
+    if export_params['gene']:
+        gene_df = db_connection.get_genes()
+        export_factory.gene_export(gene_df, output_prefix, export_params['seqs_as_tables'])
+
+    if export_params['gene_by_method']:
+        gene_df = db_connection.get_genes(prediction_method=export_params['gene_by_method'])
+        export_factory.gene_export(gene_df, '{}.{}'.format(output_prefix, export_params['gene_by_method'].lower()), export_params['seqs_as_tables'])
+
+    if export_params['annotation']:
+        annotation_df = db_connection.get_annotations(old_annotations=True) if export_params['all_records'] else db_connection.get_annotations()
+        export_factory.annotation_export(annotation_df, output_prefix)
+
+    if export_params['coverage']:
+        coverage_df = db_connection.get_coverage()
+        export_factory.coverage_export(coverage_df, output_prefix)
+
+    if export_params['transcript']:
+        transcript_df = db_connection.get_transcript()
+        export_factory.transcript_export(transcript_df, output_prefix)
+
+    if export_params['bin']:
+        bin_df = db_connection.get_current_bins()
+        export_factory.bin_export(bin_df, db_connection, output_prefix)
+
+    if export_params['bin_all']:
+        bin_df = db_connection.get_all_bins()
+        export_factory.bin_export(bin_df, db_connection, output_prefix, record_version='all')
+
+    if export_params['bin_by_version']:
+        bin_df = db_connection.get_bins_by_version(export_params['bin_by_version'])
+        export_factory.bin_export(bin_df, db_connection, output_prefix, record_version=export_params['bin_by_version'])
+
+    db_connection.close_connection()
+
+    #except Exception as e:
+    #    print(e)
 
 ###############################################################################
 if __name__ == '__main__':

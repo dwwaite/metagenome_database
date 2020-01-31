@@ -1,18 +1,5 @@
 '''
     Automated testing of the interation between the front- and back-end of the database tool.
-
-    Useful snippet for checking database programmatically
-    
-import sqlite3
-db = sqlite3.connect('mock.hdb')
-cursor = db.cursor()
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-print(cursor.fetchall())
-
-cursor = db.cursor()
-cursor.execute("SELECT * FROM contig;")
-print(cursor.fetchall())
-
 '''
 import sys
 import argparse
