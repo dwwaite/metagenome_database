@@ -16,13 +16,13 @@ def main():
     subparser = parser.add_subparsers(dest='command')
 
     # Creation subparser
-    parser_create = subparser.add_parser('create', help='Create the basic database file and populate with contigs')
+    parser_create = subparser.add_parser('create', help='Create a new database file')
     parser_create.add_argument('-d', '--db', help='Database name', required=True)
 
     # Add subparser
     parser_add = subparser.add_parser('add', help='Add entries to an existing database')
     parser_add.add_argument('-d', '--db', help='Database name', required=True)
-    parser_add.add_argument('-c', '--contig', help='Assembled contig or scaffold file for basing the database', required=False)
+    parser_add.add_argument('--contig', help='Assembled contig or scaffold file for basing the database', required=False)
     parser_add.add_argument('--prodigal_aa', help='Genes (amino acids) predicted using prodigal', required=False)
     parser_add.add_argument('--prodigal_nt', help='Genes (nucleotide) predicted using prodigal', required=False)
     parser_add.add_argument('--rrna_ssu', help='Small subunit (16S, 18S) rRNA gene fasta file, predicted by MeTaxa2. Automatically creates annotations.', required=False)
@@ -35,9 +35,30 @@ def main():
     parser_add.add_argument('--bin_file', help='Table of bin descriptions to add to database', required=False)
     parser_add.add_argument('--bin_dir', help='Directory of bins to add to database', required=False)
 
-    # Remove/delete subparser
+    # Export subparser
+    parser_export = subparser.add_parser('export', help='Retrieve entries from an existing database.')
+    parser_export.add_argument('-d', '--db', help='Database name', required=True)
+    parser_export.add_argument('-o', '--output', help='Target file name for export. Feature-specific suffixes will be appended to this value', required=True)
+    parser_export.add_argument('--seqs_as_tables', help='Export contigs or genes as tables instead of fasta files (Default: False)', action='store_true', required=False)
+    parser_export.add_argument('--contig', help='Export all contigs', action='store_true', required=False) #get_contigs
+    parser_export.add_argument('--gene', help='Export all genes', action='store_true', required=False) #get_contigs
+    parser_export.add_argument('--annotation', help='Export annotations associated with a set of genes. Requires a text file of gene names', required=False) #get_contigs
+    parser_export.add_argument('--coverage', help='Export all contig coverage values in the database', action='store_true', required=False) #get_contigs
+    parser_export.add_argument('--coverage_by_sample', help='Export all contig coverage values found in a set of samples. Requires a text file of sample names', required=False) #get_contigs
+    parser_export.add_argument('--transcript', help='Export all gene expression values in the database', action='store_true', required=False) #get_contigs
+    parser_export.add_argument('--transcript_by_sample', help='Export all gene expression values found in a set of samples. Requires a text file of sample names', required=False) #get_contigs
+    parser_export.add_argument('--bin', help='Export contigs, genes, and annotations associated with a bin. Requires a text file of bin names', required=False) #get_contigs
 
-    #args = parser.parse_args()
+    # Remove/delete subparser
+    #parser_remove = subparser.add_parser('remove', help='Remove entries from an existing database')
+    #parser_remove.add_argument('-d', '--db', help='Database name', required=True)
+    #parser_remove.add_argument('--contig', help='Contigs or scaffolds to remove. If removed, will also remove any associated genes, coverage values, or bin associations', required=False)
+    #parser_remove.add_argument('--gene', help='Genes to remove. If removed, will also remove any associated annotations or transcription records', required=False)
+    #parser_remove.add_argument('--annotation', help='Annotations to remove', required=False)
+    #parser_remove.add_argument('--coverage', help='Coverage records to remove', required=False)
+    #parser_remove.add_argument('--transcript', help='Transcription records to remove', required=False)
+    #parser_remove.add_argument('--bin', help='Bin associations to remove. Removing bins does not affect the underlying contigs/scaffolds', required=False)
+
     args = parser.parse_args()
 
     ''' Process flow control '''
@@ -45,19 +66,10 @@ def main():
         create_database(args.db)
 
     elif args.command == 'add':
-        add_features(args.db,
-                     contig_file=args.contig,
-                     aa_file=args.prodigal_aa,
-                     nt_file=args.prodigal_nt,
-                     ssu_file=args.rrna_ssu,
-                     lsu_file=args.rrna_lsu,
-                     trna_file=args.trna,
-                     trna_meta_file=args.trna_meta,
-                     ann_file=args.annotations,
-                     coverage_file=args.coverage,
-                     transcript_file=args.transcript,
-                     bin_file=args.bin_file,
-                     bin_dir=args.bin_dir)
+        add_features(args.db, vars(args) )
+
+    elif args.command == 'export':
+        pass
 
 ###############################################################################
 #
@@ -76,40 +88,38 @@ def create_database(db_name):
 
         db_connection.close_connection()
 
-def add_features(db_name, contig_file=None, aa_file=None, nt_file=None, ssu_file=None, lsu_file=None, trna_file=None, trna_meta_file=None, ann_file=None, coverage_file=None, transcript_file=None, bin_file=None, bin_dir=None):
-
+def add_features(db_name, add_params):
+    
     ''' Open a connection then attempt to add each feature provided.
         The insert operations are ordered so if dependent features are added at the same time as their dependencies, there will be no error. '''
     try:
 
         db_connection = DatabaseManipulator(db_name)
 
-        if contig_file:
-            db_connection.add_contigs(contig_file)
+        if add_params['contig']:
+            db_connection.add_contigs(add_params['contig'])
 
-        if aa_file or nt_file:
-            db_connection.add_genes_prodigal(aa_file=aa_file, nt_file=nt_file)
+        if add_params['prodigal_aa'] or add_params['prodigal_nt']: db_connection.add_genes_prodigal(aa_file=add_params['prodigal_aa'], nt_file=add_params['prodigal_nt'])
 
-        if ssu_file:
-            db_connection.add_genes_metaxa(ssu_file, 'SSU')
+        if add_params['rrna_ssu']: db_connection.add_genes_metaxa(wargs['rrna_ssu'], 'SSU')
 
-        if lsu_file:
-            db_connection.add_genes_metaxa(lsu_file, 'LSU')
+        if add_params['rrna_lsu']: db_connection.add_genes_metaxa(add_params['rrna_lsu'], 'LSU')
 
-        if trna_file and trna_meta_file:
-            db_connection.create_aragorn_trna(trna_file, trna_meta_file)
+        if add_params['trna'] and add_params['trna_meta']:
+            db_connection.create_aragorn_trna(add_params['trna'], add_params['trna_meta'])
+        elif add_params['trna'] or add_params['trna_meta']:
+            print('Missing required input parameters for tRNA annotation, please check input options.')
 
-        if ann_file:
-            db_connection.add_annotations_by_table(ann_file)
+        if add_params['annotations']: db_connection.add_annotations_by_table(add_params['annotations'])
 
-        if coverage_file:
-            db_connection.add_coverage_table(coverage_file)
+        if add_params['coverage']: db_connection.add_coverage_table(add_params['coverage'])
 
-        if transcript_file:
-            db_connection.add_transcript_table(transcript_file)
+        if add_params['transcript']: db_connection.add_transcript_table(add_params['transcript'])
 
-        if bin_file and bin_dir:
-            db_connection.add_bin_table(bin_file, bin_dir)
+        if add_params['bin_file'] and add_params['bin_dir']:
+            db_connection.add_bin_table(add_params['bin_file'], add_params['bin_dir'])
+        elif add_params['bin_file'] or add_params['bin_dir']:
+            print('Missing required input parameters for bins, please check input options.')
 
         db_connection.conn.commit()
         db_connection.close_connection()
@@ -117,6 +127,22 @@ def add_features(db_name, contig_file=None, aa_file=None, nt_file=None, ssu_file
     except Exception as e:
 
         print(e)
+
+'''
+--seqs_as_tables', help='Export contigs or genes as tables instead of fasta files (Default: False)', action='store_true', required=False)
+    parser_export.add_argument('--contig', help='Export all contigs', action='store_true', required=False) #get_contigs
+    parser_export.add_argument('--gene', help='Export all genes', action='store_true', required=False) #get_contigs
+    parser_export.add_argument('--annotation', help='Export annotations associated with a set of genes. Requires a text file of gene names', required=False) #get_contigs
+    parser_export.add_argument('--coverage', help='Export all contig coverage values in the database', action='store_true', required=False) #get_contigs
+    parser_export.add_argument('--coverage_by_sample', help='Export all contig coverage values found in a set of samples. Requires a text file of sample names', required=False) #get_contigs
+    parser_export.add_argument('--transcript', help='Export all gene expression values in the database', action='store_true', required=False) #get_contigs
+    parser_export.add_argument('--transcript_by_sample', help='Export all gene expression values found in a set of samples. Requires a text file of sample names', required=False) #get_contigs
+    parser_export.add_argument('--bin', help='Expo
+'''
+def export_data(db_name, output_prefix, export_contigs=None, export_genes=None, export_annotations=None, export_coverage=None, export_cov_by_sample=None, export_transcript=None, export_transcript_by_sample=None):
+
+
+    return
 
 ###############################################################################
 if __name__ == '__main__':
