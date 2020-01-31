@@ -49,6 +49,10 @@ def main():
     parser_export.add_argument('--bin_all', help='Export contigs, genes, and current annotations associated with all bins', action='store_true', required=False)
     parser_export.add_argument('--bin_by_version', help='Export contigs, genes, and current annotations associated with bins of a user-specifed binning version', required=False)
 
+    # View subparser
+    parser_view = subparser.add_parser('view', help='Report the current contents of the database to stdout')
+    parser_view.add_argument('-d', '--db', help='Database name', required=True)
+
     # Remove/delete subparser
     #parser_remove = subparser.add_parser('remove', help='Remove entries from an existing database')
     #parser_remove.add_argument('-d', '--db', help='Database name', required=True)
@@ -70,6 +74,9 @@ def main():
 
     elif args.command == 'export':
         export_data(args.db, args.output, vars(args) )
+
+    elif args.command == 'view':
+        summarise_database(args.db)
 
 ###############################################################################
 #
@@ -174,6 +181,17 @@ def export_data(db_name, output_prefix, export_params):
 
     except Exception as e:
         print( 'Error encountered: {}'.format(e))
+
+def summarise_database(db_name):
+
+    try:
+        db_connection = DatabaseManipulator(db_name)
+        export_factory.summarise_database(db_name, db_connection)
+        db_connection.close_connection()
+
+    except Exception as e:
+        print( 'Error encountered: {}'.format(e))
+    
 
 ###############################################################################
 if __name__ == '__main__':
