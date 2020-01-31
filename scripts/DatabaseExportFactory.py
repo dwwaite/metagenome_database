@@ -14,7 +14,9 @@ class DatabaseExportFactory():
 
         output_writer = open('{}.{}'.format(output_name, ext), 'w')
         for _, row in df.iterrows():
-            _ = output_writer.write( '>{}\n{}\n'.format(row[name_column], row[seq_column]) )
+
+            if row[seq_column] != '':
+                _ = output_writer.write( '>{}\n{}\n'.format(row[name_column], row[seq_column]) )
 
         output_writer.close()
 
