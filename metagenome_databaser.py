@@ -126,54 +126,54 @@ def add_features(db_name, add_params):
 
     except Exception as e:
         db_connection.conn.rollback()
-        print(e)
+        print( 'Error encountered: {}'.format(e))
 
 def export_data(db_name, output_prefix, export_params):
 
-    #try:
+    try:
 
-    db_connection = DatabaseManipulator(db_name)
+        db_connection = DatabaseManipulator(db_name)
 
-    if export_params['contig']:
-        contig_df = db_connection.get_contigs()
-        export_factory.contig_export(contig_df, output_prefix, export_params['seqs_as_tables'])
+        if export_params['contig']:
+            contig_df = db_connection.get_contigs()
+            export_factory.contig_export(contig_df, output_prefix, export_params['seqs_as_tables'])
 
-    if export_params['gene']:
-        gene_df = db_connection.get_genes()
-        export_factory.gene_export(gene_df, output_prefix, export_params['seqs_as_tables'])
+        if export_params['gene']:
+            gene_df = db_connection.get_genes()
+            export_factory.gene_export(gene_df, output_prefix, export_params['seqs_as_tables'])
 
-    if export_params['gene_by_method']:
-        gene_df = db_connection.get_genes(prediction_method=export_params['gene_by_method'])
-        export_factory.gene_export(gene_df, '{}.{}'.format(output_prefix, export_params['gene_by_method'].lower()), export_params['seqs_as_tables'])
+        if export_params['gene_by_method']:
+            gene_df = db_connection.get_genes(prediction_method=export_params['gene_by_method'])
+            export_factory.gene_export(gene_df, '{}.{}'.format(output_prefix, export_params['gene_by_method'].lower()), export_params['seqs_as_tables'])
 
-    if export_params['annotation']:
-        annotation_df = db_connection.get_annotations(old_annotations=True) if export_params['all_records'] else db_connection.get_annotations()
-        export_factory.annotation_export(annotation_df, output_prefix)
+        if export_params['annotation']:
+            annotation_df = db_connection.get_annotations(old_annotations=True) if export_params['all_records'] else db_connection.get_annotations()
+            export_factory.annotation_export(annotation_df, output_prefix)
 
-    if export_params['coverage']:
-        coverage_df = db_connection.get_coverage()
-        export_factory.coverage_export(coverage_df, output_prefix)
+        if export_params['coverage']:
+            coverage_df = db_connection.get_coverage()
+            export_factory.coverage_export(coverage_df, output_prefix)
 
-    if export_params['transcript']:
-        transcript_df = db_connection.get_transcript()
-        export_factory.transcript_export(transcript_df, output_prefix)
+        if export_params['transcript']:
+            transcript_df = db_connection.get_transcript()
+            export_factory.transcript_export(transcript_df, output_prefix)
 
-    if export_params['bin']:
-        bin_df = db_connection.get_current_bins()
-        export_factory.bin_export(bin_df, db_connection, output_prefix)
+        if export_params['bin']:
+            bin_df = db_connection.get_current_bins()
+            export_factory.bin_export(bin_df, db_connection, output_prefix)
 
-    if export_params['bin_all']:
-        bin_df = db_connection.get_all_bins()
-        export_factory.bin_export(bin_df, db_connection, output_prefix, record_version='all')
+        if export_params['bin_all']:
+            bin_df = db_connection.get_all_bins()
+            export_factory.bin_export(bin_df, db_connection, output_prefix, record_version='all')
 
-    if export_params['bin_by_version']:
-        bin_df = db_connection.get_bins_by_version(export_params['bin_by_version'])
-        export_factory.bin_export(bin_df, db_connection, output_prefix, record_version=export_params['bin_by_version'])
+        if export_params['bin_by_version']:
+            bin_df = db_connection.get_bins_by_version(export_params['bin_by_version'])
+            export_factory.bin_export(bin_df, db_connection, output_prefix, record_version=export_params['bin_by_version'])
 
-    db_connection.close_connection()
+        db_connection.close_connection()
 
-    #except Exception as e:
-    #    print(e)
+    except Exception as e:
+        print( 'Error encountered: {}'.format(e))
 
 ###############################################################################
 if __name__ == '__main__':
