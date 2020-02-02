@@ -1,4 +1,8 @@
-import sqlite3, sys, os, glob
+import sys
+import os
+import glob
+import sqlite3
+import getpass
 import pandas as pd
 import dateutil.parser as date_parser
 
@@ -9,10 +13,9 @@ from scripts.DatabaseObjectFactory import Contig, Gene, Annotation, Mapping, Bin
 
 class DatabaseManipulator():
 
-    def __init__(self, database_name):
+    def __init__(self, database_name, database_version):
         self.database_name = database_name
-
-        self.open_connection()
+        self.database_version = '.'.join(database_version)       
 
     def create_blank_database(self):
 
@@ -24,13 +27,18 @@ class DatabaseManipulator():
         '''
 
         if self.database_exists():
-
-            return -1, 'Database file {} is already populated. Did you mean to invoke the update command?'.format(self.database_name)
+            return -1, 'Database file {} already exists. Did you mean to invoke the update command?'.format(self.database_name)
 
         try:
 
+            user_name = str( getpass.getuser() )
+
             ''' Create a cursor and populate the expected tables '''
+            self.conn = sqlite3.connect( self.database_name )
             c = self.conn.cursor()
+
+            c.execute('''CREATE TABLE tbl_version (user TEXT PRIMARY KEY,
+                                               version TEXT);''')
 
             c.execute('''CREATE TABLE contig (contigname TEXT PRIMARY KEY,
                                               sequence TEXT,
@@ -87,6 +95,8 @@ class DatabaseManipulator():
                                                   FOREIGN KEY(contigname) REFERENCES contig(contigname),
                                                   FOREIGN KEY(binname) REFERENCES bin(binname));''')
 
+            c.execute('INSERT INTO tbl_version(user, version) VALUES(?, ?)', ( user_name, self.database_version) )
+
             self.conn.commit()
 
             return 1, None
@@ -100,27 +110,43 @@ class DatabaseManipulator():
     def open_connection(self):
 
         try:
-    
             self.conn = sqlite3.connect( self.database_name )
-            self.conn.executescript( ''' pragma foreign_keys=on; ''' )
+            self.conn.executescript( ''' pragma foreign_keys=on; ''' )          
 
         except Error as e:
-            print(e)
+            raise Exception('Unable to open connection to database {}'.format(self.database_name) )
 
     def database_exists(self):
+        return os.path.exists( self.database_name )
+    
+    def validate_database_version(self):
 
-        ''' Count each of the expected tables, then evaluate if the number of successful observation is correct '''
+        db_creator, db_version = self.read_version
+        if db_version != self.database_version:
+            raise Exception('Software version is {}, but database was created under version {}. Unable to proceed.'.format(self.database_version, db_version))
+
+    def validate_database_structure(self):
+
+        ''' Count each of the expected tables, then evaluate if the number of successful observations is correct '''
         obs_tables = 0
-        tables_defined = ['contig', 'gene', 'annotation', 'coverage', 'bin']
+        tables_defined = ['version', 'contig', 'gene', 'annotation', 'coverage', 'bin']
         exp_tables = len( tables_defined )
 
+        self.open_connection()
         c = self.conn.cursor()
     
         for tbl in tables_defined:
 
             c.execute(''' SELECT count(name) FROM sqlite_master WHERE type='table' AND name=? ''', (tbl,) )
 
-            if c.fetchone()[0]: obs_tables += 1
+            x = c.fetchone()[0]
+            if x: obs_tables += 1
+            #if c.fetchone()[0]: obs_tables += 1
+
+            print('')
+            print(tbl)
+            print(x)
+            print('')
 
         ''' Evaluate the outcome
             1. Obs == Exp, database exists, return True
@@ -139,10 +165,22 @@ class DatabaseManipulator():
         else:
        
             return -1
-    
+
+        self.close_connection()
+
     def close_connection(self):
 
         self.conn.close()
+
+    @property
+    def read_version(self):
+
+        self.open_connection()
+        c = self.conn.cursor()
+        c.execute('''SELECT * FROM tbl_version;''')
+        version = c.fetchone()
+
+        return version
 
     # endregion
 

@@ -14,6 +14,9 @@ import pandas as pd
 class TestFrontend(unittest.TestCase):
 
     # region Overhead functions
+
+    global __version_info__
+    __version_info__ = ('0', '2', '0')
  
     def setUp(self):
         self.temp_file_buffer = []
@@ -38,18 +41,14 @@ class TestFrontend(unittest.TestCase):
     def create_database(self):
 
         database_name = 'mock.hdb'
-        fe_create_database(database_name)
+        database_version = '0.2.0'
+        fe_create_database(database_name, database_version)
         self.temp_file_buffer.append(database_name)
-        return database_name
+        return database_name, database_version
 
     def test_create_database(self):
 
-        ''' Attempt to create a fresh database, populating with the contents of tests/contigs.fna '''
-
-        ''' Test '''
-        database_name = self.create_database()
-
-        ''' Evaluate '''
+        database_name, _ = self.create_database()
         self.assertTrue( os.path.exists(database_name) )
 
     def test_create_database_already_exists(self):
@@ -59,14 +58,14 @@ class TestFrontend(unittest.TestCase):
                 message spawned by the underlying DatabaseManipulator, so just catching and reading this message is sufficient. '''
 
         ''' Test '''
-        database_name = self.create_database()
+        database_name, _ = self.create_database()
 
         self.start_logging_stdout()
         _ = self.create_database()
 
         ''' Evaluate '''
         msg = self.stop_logging_stdout()
-        self.assertIn( 'Database file {} is already populated. Did you mean to invoke the update command?'.format(database_name), msg )
+        self.assertIn( 'Database file {} already exists. Did you mean to invoke the update command?'.format(database_name), msg )
 
     #endregion
 
@@ -74,7 +73,7 @@ class TestFrontend(unittest.TestCase):
     
     def create_blank_params(self):
         return { 'contig': None, 'prodigal_aa': None, 'prodigal_nt': None,
-                 'rrna_ssu': None, 'rrna_lsu': None, 'trna': None, 'trna_meta': None,
+                 'rrna_ssu': None, 'rrna_lsu': None, 'trna': None, 'trna_contigs': None,
                  'annotations': None, 'coverage': None, 'transcript': None, 'bin_file': None, 'bin_dir': None }
 
     def test_add_features(self):
@@ -83,15 +82,16 @@ class TestFrontend(unittest.TestCase):
             Just to a simple pair of contig/gene additions to ensure the dependency is satisfied. '''
 
         ''' Set up the database and params dict '''
-        database_name = self.create_database()
+        database_name, database_version = self.create_database()
         params = self.create_blank_params()
         params['contig'] = 'contigs.fna'
         params['prodigal_aa'] = 'genes_prod_aa.faa'
 
-        fe_add_features(database_name, params )
+        fe_add_features(database_name, database_version, params)
 
         ''' Evaluate '''
-        db_m = DatabaseManipulator(database_name)
+        db_m = DatabaseManipulator(database_name, database_version)
+        db_m.open_connection()
 
         contig_df = db_m.get_contigs()
         self.assertEqual( contig_df.shape[0], 3 )
@@ -102,13 +102,13 @@ class TestFrontend(unittest.TestCase):
     def test_add_features_failed_dependencies(self):
 
         ''' Set up the database and params dict '''
-        database_name = self.create_database()
+        database_name, database_version = self.create_database()
         params = self.create_blank_params()
         params['prodigal_aa'] = 'genes_prod_aa.faa'
 
         ''' Evaluate '''
         self.start_logging_stdout()
-        fe_add_features(database_name, params)
+        fe_add_features(database_name, database_version, params)
 
         msg = self.stop_logging_stdout()
         gene_names = ['contig1_1', 'contig1_2', 'contig2_1', 'contig3_1']
@@ -116,24 +116,25 @@ class TestFrontend(unittest.TestCase):
         err_mask = [ 'Gene {} is not linked to an existing contig. Aborting...'.format(g) in msg for g in gene_names ]
         self.assertTrue( reduce(lambda a, b : a or b, err_mask) )
 
-        db_m = DatabaseManipulator(database_name)
+        db_m = DatabaseManipulator(database_name, database_version)
+        db_m.open_connection()
         gene_df = db_m.get_genes()
         self.assertEqual( gene_df.shape[0], 0 )
 
     def test_add_trna_missing_param(self):
 
         ''' Set up the database and params dict '''
-        database_name = self.create_database()
+        database_name, database_version = self.create_database()
         params = self.create_blank_params()
         params['contig'] = 'contigs.fna'
         params['trna'] = 'genes_trna.fna'
 
         ''' Evaluate '''
         self.start_logging_stdout()
-        fe_add_features(database_name, params )
+        fe_add_features(database_name, database_version, params)
 
         msg = self.stop_logging_stdout()
-        self.assertIn( 'Missing required input parameters for tRNA annotation, please check input options.', msg )
+        self.assertIn( 'Missing contig file required for tRNA annotation, please check input options.', msg )
 
     #endregion
 

@@ -96,6 +96,9 @@ class DatabaseExportFactory():
         print('')
         print('')
         print( 'Generating report for database: {}'.format(db_name) )
+        user, version = dbm.read_version
+        print( '    Built under software version {}'.format(version) )
+        print( '    Built by user {}'.format(user) )
 
         ''' Start with contigs '''
         contig_df = dbm.get_contigs()

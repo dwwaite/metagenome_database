@@ -22,7 +22,14 @@ class TestDatabaseManipulator(unittest.TestCase):
     def setUp(self):
 
         ''' Create an in-memory database for testing purposes '''
-        self.db_m = DatabaseManipulator(':memory:')
+        __version_info__ = ('0', '1', '0')
+
+        self.db_m = DatabaseManipulator(':memory:', __version_info__)
+        self.db_m.create_blank_database()
+
+        #cursor = self.db_m.conn.cursor()
+        #cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        #print(cursor.fetchall())
 
         self.temp_file_buffer = []
         self.temp_folder_buffer = []
@@ -35,19 +42,18 @@ class TestDatabaseManipulator(unittest.TestCase):
         for temp_folder in self.temp_folder_buffer:
             os.rmdir(temp_folder)
 
-    # region Print logging switches
-
-    def start_logging_stdout(self):
-        self.print_capture = io.StringIO()
-        sys.stdout = self.print_capture
-
-    def stop_logging_stdout(self):
-        sys.stdout = sys.__stdout__
-        return self.print_capture.getvalue()
-
-    # endregion
-
     # region File manipulation for test purposes
+
+    def spawn_persistant_database(self, db_version):
+
+        db_name = 'mock.testing.hdb'
+        self.db_m = DatabaseManipulator(db_name, db_version)
+
+        self.db_m.create_blank_database()
+        self.db_m.close_connection()
+
+        self.temp_file_buffer.append(db_name)
+        return db_name
 
     def make_directory(self, d_name):
         os.mkdir(d_name)
@@ -152,47 +158,68 @@ class TestDatabaseManipulator(unittest.TestCase):
 
     def test_open_connection(self):
 
-        # There does not appear to be a way to actually test a connection is open.
-        # Most recommended way is to simply execute a query, and in the absence of error, assume the connection is valid.
+        ''' There does not appear to be a way to actually test a connection is open.
+            Most commonly recommended way is to simply execute a query, and in the absence of error, assume the connection is valid. '''
+        self.db_m.open_connection()
         cursor = self.db_m.conn.cursor()
 
         try:
 
             cursor.execute(''' SELECT count(name) FROM sqlite_master WHERE type='table' AND name='contig' ''')
-            self.assertEqual(1, 1, 'Open connection to database')
+            self.assertEqual(1, 1)
 
         except:
-
-            self.assertEqual(0, 1, 'Open connection to database')
+            self.assertEqual(0, 1)
 
     def test_db_creation(self):
 
-        self.db_m.create_blank_database()
+        version_created = ('0', '1', '0')
+        _ = self.spawn_persistant_database(version_created)
+
+        self.db_m.open_connection()
 
         cursor = self.db_m.conn.cursor()
+        cursor.execute(''' SELECT count(name) FROM sqlite_master WHERE type='table' ''' )
 
-        for tbl in ['contig', 'gene', 'annotation', 'coverage', 'transcript', 'bin']:
-
+        for tbl in ['tbl_version', 'contig', 'gene', 'annotation', 'coverage', 'transcript', 'bin']:
             cursor.execute(''' SELECT count(name) FROM sqlite_master WHERE type='table' AND name=? ''', (tbl,) )
-
             self.assertEqual(cursor.fetchone()[0], 1 )
+
+        self.db_m.close_connection()
 
     def test_db_creation_alreadyexists(self):
 
-        self.db_m.create_blank_database()
-        i, _ = self.db_m.create_blank_database()
+        version_created = ('0', '1', '0')
+        database_name = self.spawn_persistant_database(version_created)
 
-        self.assertEqual(i, -1, 'Database already exists' )
+        ''' Test '''
+        second_db = DatabaseManipulator(database_name, version_created)
+        _, err = second_db.create_blank_database()
 
-    def test_database_exists_notexists(self):
+        ''' Evaluate '''
+        self.assertIn( 'Database file {} already exists. Did you mean to invoke the update command?'.format(database_name), err )
 
-        ''' As above, but without invoking the create_blank_database() function '''
-        self.assertEqual( self.db_m.database_exists(), 0 )
+    def test_database_version_error(self):
 
-    def test_database_exists_othererror(self):
+        version_created = ('0', '1', '0')
+        version_attached = ('0', '2', '0')
+
+        database_name = self.spawn_persistant_database(version_created)
+        db_m = DatabaseManipulator(database_name, version_attached)
+
+        ''' Evaluate '''
+        with self.assertRaises(Exception) as cm:
+            db_m.validate_database_version()
+
+        self.assertIn( 'Software version is {}, but database was created under version {}. Unable to proceed.'.format('.'.join(version_attached),
+                                                                                                                      '.'.join(version_created)), str(cm.exception) )
+
+    @unittest.skip('Database structure is not explicitly tested in working code yet')
+    def test_database_exists_structure_error(self):
 
         ''' Open database connection, create cursor, drop table, test creation '''
         self.db_m.create_blank_database()
+        self.db_m.open_connection()
         cursor = self.db_m.conn.cursor()
 
         cursor.execute( "DROP TABLE bin" )
@@ -201,6 +228,7 @@ class TestDatabaseManipulator(unittest.TestCase):
 
     def test_close_connection(self):
 
+        self.db_m.open_connection()
         cursor = self.db_m.conn.cursor()
 
         self.db_m.close_connection()
@@ -1688,54 +1716,6 @@ class TestDatabaseManipulator(unittest.TestCase):
         self.assertFalse( success_state )
 
     # endregion
-
-    """
-    # region Presentation functions
-
-    ''' This section requires more complex and function-specific test data, so large parts are spawned within the calling function rather than outsourced to a function '''
-    def test_present_coverage_by_contigs(self):
-
-        ''' Test '''
-        self.db_m.create_blank_database()
-
-        ''' Contig with coverage in every sample '''
-        self.db_m._add_contig('contig1', 'ATCGATCGATCG', 12, 0.5)
-        self.db_m._add_coverage('contig1', 'Sample1', 1)
-        self.db_m._add_coverage('contig1', 'Sample2', 2)
-        self.db_m._add_coverage('contig1', 'Sample3', 3)
-
-        ''' Contig with gappy coverage, should be returned with some 0 cells '''
-        self.db_m._add_contig('contig2', 'ATCGCGCG', 8, 0.75)
-        self.db_m._add_coverage('contig2', 'Sample1', 2)
-        self.db_m._add_coverage('contig2', 'Sample2', 4)
-
-        ''' Contig with no coverage, should not be returned '''
-        self.db_m._add_contig('contig3', 'CGCG', 4, 1.0)
-
-        ''' Evaluate '''
-        coverage_df = self.db_m.present_coverage_by_contigs()
-
-        #print(coverage_df.head())
-        self.assertEqual( coverage_df.shape[0], 2 )
-
-
-
-    """
-    def present_coverage_by_contigs(self):
-
-        ''' Return a DataFrame of reads mapped per bin, spread over sample sites '''
-
-        cov_df = self.get_coverage()
-
-        spread_df = cov_df.pivot(index='contig_name',columns='sample',values='reads_mapped').fillna(0)
-        spread_df.reset_index(inplace=True)
-
-        return spread_df
-    """
-
-    # endregion
-
-    """
 
 if __name__ == '__main__':
 

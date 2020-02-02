@@ -1,0 +1,5 @@
+Gene	Sample1	Sample2
+contig1_1	1	2
+contig1_2	2	0
+contig2_1	0	1
+contig3_1	1	0

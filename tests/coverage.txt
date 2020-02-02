@@ -1,0 +1,4 @@
+Contig	Sample1	Sample2
+contig1	123	456
+contig2	789	0
+contig3	135	246

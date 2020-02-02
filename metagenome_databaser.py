@@ -9,15 +9,63 @@ from scripts.DatabaseExportFactory import DatabaseExportFactory as export_factor
 
 def main():
 
+    '''
+        Define the version of the database software. This is passed into the database connection function.
+            If creation, the database is stamped with the software version.
+            If loading, the database is tested to ensure it is compatible with the current software version.
+    '''
+    __version_info__ = ('0', '1', '0')
+    version_str = '.'.join(__version_info__)
+
     ''' Set up the argument/subargument parsers '''
     parser = argparse.ArgumentParser( description='' )
-    subparser = parser.add_subparsers(dest='command')
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s version {}'.format( version_str ) )
 
-    # Creation subparser
+    ''' Begin loading sub-commands '''
+    subparser = parser.add_subparsers(dest='command')
+    populate_create(subparser)
+    populate_add(subparser)
+    populate_export(subparser)
+    populate_view(subparser)
+
+    # Remove/delete subparser
+    #parser_remove = subparser.add_parser('remove', help='Remove entries from an existing database')
+    #parser_remove.add_argument('-d', '--db', help='Database name', required=True)
+    #parser_remove.add_argument('--contig', help='Contigs or scaffolds to remove. If removed, will also remove any associated genes, coverage values, or bin associations', required=False)
+    #parser_remove.add_argument('--gene', help='Genes to remove. If removed, will also remove any associated annotations or transcription records', required=False)
+    #parser_remove.add_argument('--annotation', help='Annotations to remove', required=False)
+    #parser_remove.add_argument('--coverage', help='Coverage records to remove', required=False)
+    #parser_remove.add_argument('--transcript', help='Transcription records to remove', required=False)
+    #parser_remove.add_argument('--bin', help='Bin associations to remove. Removing bins does not affect the underlying contigs/scaffolds', required=False)
+
+    args = parser.parse_args()
+
+    ''' Process flow control
+        For options other than create, ensure software and database are compatible before proceeding '''    
+    if args.command == 'create':
+        create_database(args.db, version_str)
+
+    elif args.command == 'add':
+        verify_versions(args.db, version_str)
+        add_features(args.db, version_str, vars(args) )
+
+    elif args.command == 'export':
+        verify_versions(args.db, version_str)
+        export_data(args.db, version_str, args.output, vars(args) )
+
+    elif args.command == 'view':
+        verify_versions(args.db, version_str)
+        summarise_database(args.db, version_str)
+
+###############################################################################
+#region Subparser
+#   Functions to tidy away the creation of subparsers for the user interface
+
+def populate_create(subparser):
     parser_create = subparser.add_parser('create', help='Create a new database file')
     parser_create.add_argument('-d', '--db', help='Database name', required=True)
 
-    # Add subparser
+def populate_add(subparser):
     parser_add = subparser.add_parser('add', help='Add entries to an existing database')
     parser_add.add_argument('-d', '--db', help='Database name', required=True)
     parser_add.add_argument('--contig', help='Assembled contig or scaffold file for basing the database', required=False)
@@ -33,7 +81,7 @@ def main():
     parser_add.add_argument('--bin_file', help='Table of bin descriptions to add to database', required=False)
     parser_add.add_argument('--bin_dir', help='Directory of bins to add to database', required=False)
 
-    # Export subparser
+def populate_export(subparser):
     parser_export = subparser.add_parser('export', help='Retrieve entries from an existing database.')
     parser_export.add_argument('-d', '--db', help='Database name', required=True)
     parser_export.add_argument('-o', '--output', help='Target file handle for export. Feature-specific suffixes will be appended to this value', required=True)
@@ -49,59 +97,35 @@ def main():
     parser_export.add_argument('--bin_all', help='Export contigs, genes, and current annotations associated with all bins', action='store_true', required=False)
     parser_export.add_argument('--bin_by_version', help='Export contigs, genes, and current annotations associated with bins of a user-specifed binning version', required=False)
 
-    # View subparser
+def populate_view(subparser):
     parser_view = subparser.add_parser('view', help='Report the current contents of the database to stdout')
     parser_view.add_argument('-d', '--db', help='Database name', required=True)
 
-    # Remove/delete subparser
-    #parser_remove = subparser.add_parser('remove', help='Remove entries from an existing database')
-    #parser_remove.add_argument('-d', '--db', help='Database name', required=True)
-    #parser_remove.add_argument('--contig', help='Contigs or scaffolds to remove. If removed, will also remove any associated genes, coverage values, or bin associations', required=False)
-    #parser_remove.add_argument('--gene', help='Genes to remove. If removed, will also remove any associated annotations or transcription records', required=False)
-    #parser_remove.add_argument('--annotation', help='Annotations to remove', required=False)
-    #parser_remove.add_argument('--coverage', help='Coverage records to remove', required=False)
-    #parser_remove.add_argument('--transcript', help='Transcription records to remove', required=False)
-    #parser_remove.add_argument('--bin', help='Bin associations to remove. Removing bins does not affect the underlying contigs/scaffolds', required=False)
-
-    args = parser.parse_args()
-
-    ''' Process flow control '''
-    if args.command == 'create':
-        create_database(args.db)
-
-    elif args.command == 'add':
-        add_features(args.db, vars(args) )
-
-    elif args.command == 'export':
-        export_data(args.db, args.output, vars(args) )
-
-    elif args.command == 'view':
-        summarise_database(args.db)
-
+#endregion
 ###############################################################################
-#
-# Parse the user parameters into commands to the DatabaseManipulator
-#
-
-def create_database(db_name):
+#region User input flow control
+#   Parse the user parameters into commands to the DatabaseManipulator
+def create_database(db_name, db_version):
 
         ''' Open a connection and create the blank tables '''
-        db_connection = DatabaseManipulator(db_name)
-
+        db_connection = DatabaseManipulator(db_name, db_version)
         status, msg = db_connection.create_blank_database()
 
         if status != 1:
             print(msg)
 
-        db_connection.close_connection()
+def verify_versions(db_name, db_version):
+    db_connection = DatabaseManipulator(db_name, db_version)
+    db_connection.validate_database_version()
 
-def add_features(db_name, add_params):
+def add_features(db_name, db_version, add_params):
     
     ''' Open a connection then attempt to add each feature provided.
         The insert operations are ordered so if dependent features are added at the same time as their dependencies, there will be no error. '''
     try:
 
-        db_connection = DatabaseManipulator(db_name)
+        db_connection = DatabaseManipulator(db_name, db_version)
+        db_connection.open_connection()
 
         if add_params['contig']:
             db_connection.add_contigs(add_params['contig'])
@@ -135,11 +159,12 @@ def add_features(db_name, add_params):
         db_connection.conn.rollback()
         print( 'Error encountered: {}'.format(e))
 
-def export_data(db_name, output_prefix, export_params):
+def export_data(db_name, db_version, output_prefix, export_params):
 
     try:
 
-        db_connection = DatabaseManipulator(db_name)
+        db_connection = DatabaseManipulator(db_name, db_version)
+        db_connection.open_connection()
 
         if export_params['contig']:
             contig_df = db_connection.get_contigs()
@@ -182,17 +207,20 @@ def export_data(db_name, output_prefix, export_params):
     except Exception as e:
         print( 'Error encountered: {}'.format(e))
 
-def summarise_database(db_name):
+def summarise_database(db_name, db_version):
 
     try:
-        db_connection = DatabaseManipulator(db_name)
+        db_connection = DatabaseManipulator(db_name, db_version)
+        db_connection.open_connection()
+
         export_factory.summarise_database(db_name, db_connection)
+
         db_connection.close_connection()
 
     except Exception as e:
         print( 'Error encountered: {}'.format(e))
-    
 
+#endregion
 ###############################################################################
 if __name__ == '__main__':
     main()
