@@ -15,12 +15,11 @@ def main():
             If creation, the database is stamped with the software version.
             If loading, the database is tested to ensure it is compatible with the current software version.
     '''
-    __version_info__ = ('0', '1', '0')
-    version_str = '.'.join(__version_info__)
+    self.__version_info__ = ('0', '1', '0')
 
     ''' Set up the argument/subargument parsers '''
     parser = argparse.ArgumentParser( description='' )
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s version {}'.format( version_str ) )
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s version {}'.format( self.version ) )
 
     ''' Begin loading sub-commands '''
     subparser = parser.add_subparsers(dest='command')
@@ -41,8 +40,11 @@ def main():
     #parser_remove.add_argument('--bin', help='Bin associations to remove. Removing bins does not affect the underlying contigs/scaffolds', required=False)
 
     args = parser.parse_args()
-    direct_input(args, version_str)
+    direct_input(args)
 
+@property
+def version(self):
+    return '.'.join(self.__version_info__)
 ###############################################################################
 #region Subparser
 #   Functions to tidy away the creation of subparsers for the user interface
@@ -102,27 +104,27 @@ def populate_preprocess(subparser):
 ###############################################################################
 #region User input flow control
 #   Parse the user parameters into commands to the DatabaseManipulator
-def direct_input(args, db_version):
+def direct_input(args):
 
     ''' Process flow control
         For options other than create, ensure software and database are compatible before proceeding '''    
     if args.command == 'create':
-        create_database(args.db, db_version)
+        create_database(args.db, self.version)
 
     elif args.command == 'preprocess':
             preprocess_inputs( vars(args) )
 
     else:
-        verify_versions(args.db, db_version)
+        verify_versions(args.db, self.version)
 
         if args.command == 'add':
-            add_features(args.db, db_version, vars(args) )
+            add_features(args.db, self.version, vars(args) )
 
         elif args.command == 'export':
-            export_data(args.db, db_version, args.output, vars(args) )
+            export_data(args.db, self.version, args.output, vars(args) )
 
         elif args.command == 'view':
-            summarise_database(args.db, db_version)
+            summarise_database(args.db, self.version)
 
 def create_database(db_name, db_version):
 
