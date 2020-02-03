@@ -1,0 +1,30 @@
+#                                                                                  --- full sequence ---- --- best 1 domain ---- --- domain number estimation ----
+# target name                           accession  query name           accession    E-value  score  bias   E-value  score  bias   exp reg clu  ov env dom rep inc description of target
+#                   ------------------- ---------- -------------------- ---------- --------- ------ ----- --------- ------ -----   --- --- --- --- --- --- --- --- ---------------------
+NODE_85904_length_4523_cov_3.583598_6   -          1-cysPrx_C           PF10417.9      3e-14   59.0   0.3   4.4e-14   58.4   0.3   1.3   1   0   0   1   1   1   1 -
+NODE_1679_length_42697_cov_4.475174_16  -          1-cysPrx_C           PF10417.9    3.9e-14   58.6   2.5     4e-14   58.6   0.6   2.0   2   0   0   2   2   1   1 -
+NODE_221_length_98586_cov_3.640248_29   -          1-cysPrx_C           PF10417.9    4.7e-14   58.4   0.4     9e-14   57.5   0.4   1.5   1   0   0   1   1   1   1 -
+NODE_97511_length_4196_cov_11.893988_2  -          1-cysPrx_C           PF10417.9    4.8e-14   58.3   0.1     9e-14   57.5   0.1   1.5   1   0   0   1   1   1   1 -
+NODE_86306_length_4512_cov_1.963790_3   -          1-cysPrx_C           PF10417.9    8.5e-14   57.5   0.1   1.6e-13   56.6   0.1   1.5   1   0   0   1   1   1   1 -
+NODE_204288_length_2752_cov_1.336374_4  -          1-cysPrx_C           PF10417.9    1.5e-13   56.8   0.4   2.2e-13   56.2   0.4   1.3   1   0   0   1   1   1   1 -
+NODE_80047_length_4718_cov_2.680226_4   -          1-cysPrx_C           PF10417.9    1.6e-13   56.6   0.0   3.2e-13   55.7   0.0   1.5   1   0   0   1   1   1   1 -
+NODE_47747_length_6475_cov_2.737646_5   -          1-cysPrx_C           PF10417.9      2e-13   56.4   0.2   3.7e-13   55.5   0.2   1.5   1   0   0   1   1   1   1 -
+NODE_114724_length_3815_cov_2.342718_3  -          1-cysPrx_C           PF10417.9    2.1e-13   56.3   0.6   3.8e-13   55.5   0.6   1.5   1   0   0   1   1   1   1 -
+NODE_32708_length_8164_cov_2.284968_6   -          1-cysPrx_C           PF10417.9    2.2e-13   56.3   0.1   4.2e-13   55.3   0.1   1.5   1   0   0   1   1   1   1 -
+NODE_210397_length_2706_cov_1.974468_3  -          1-cysPrx_C           PF10417.9    2.2e-13   56.2   0.1   3.7e-13   55.5   0.1   1.4   1   0   0   1   1   1   1 -
+NODE_65141_length_5343_cov_2.414018_4   -          1-cysPrx_C           PF10417.9    4.1e-13   55.4   0.1   9.3e-13   54.2   0.1   1.7   1   0   0   1   1   1   1 -
+NODE_8231_length_18756_cov_3.936786_6   -          1-cysPrx_C           PF10417.9    4.4e-13   55.2   0.3   7.6e-13   54.5   0.3   1.4   1   0   0   1   1   1   1 -
+NODE_289315_length_2279_cov_1.395273_2  -          1-cysPrx_C           PF10417.9    4.5e-13   55.2   0.4   7.6e-13   54.5   0.4   1.4   1   0   0   1   1   1   1 -
+NODE_5903_length_22576_cov_5.726163_17  -          1-cysPrx_C           PF10417.9    4.6e-13   55.2   0.5   8.2e-13   54.4   0.5   1.4   1   0   0   1   1   1   1 -
+NODE_188_length_102959_cov_4.039693_29  -          1-cysPrx_C           PF10417.9    5.2e-13   55.0   0.1   8.7e-13   54.3   0.1   1.4   1   0   0   1   1   1   1 -
+NODE_223366_length_2619_cov_1.989592_3  -          1-cysPrx_C           PF10417.9      6e-13   54.8   0.1   1.6e-12   53.5   0.1   1.8   1   0   0   1   1   1   1 -
+#
+# Program:         hmmsearch
+# Version:         3.1b2 (February 2015)
+# Pipeline mode:   SEARCH
+# Query file:      /nesi/project/uoa02469/Databases/PFAM_v32.0/Pfam-A.hmm
+# Target file:     4.Annotation/S9.Sed.m2000.prod.faa.nometa
+# Option settings: /opt/nesi/mahuika/HMMER/3.1b2-gimkl-2017a/bin/hmmsearch --tblout 4.Annotation/S9.Sed.m2000.prod.pfam -E 1e-3 --cpu 36 /nesi/project/uoa02469/Databases/PFAM_v32.0/Pfam-A.hmm 4.Annotation/S9.Sed.m2000.prod.faa.nometa 
+# Current dir:     /scale_wlg_persistent/filesets/project/ga02676/Waiwera_project
+# Date:            Mon Sep  2 22:49:30 2019
+# [ok]
