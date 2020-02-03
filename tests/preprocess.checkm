@@ -1,0 +1,11 @@
+Bin Id	Marker lineage	# genomes	# markers	# marker sets	0	1	2	3	4	5+	Completeness	Contamination	Strain heterogeneity
+archaeal_bin_1	k__Archaea (UID2)	207	145	103	34	107	4	0	0	0	74.27	2.91	75
+archaeal_bin_2	k__Archaea (UID2)	207	145	103	81	63	1	0	0	0	41.03	0.97	100
+bacterial_bin_1	c__Deltaproteobacteria (UID3217)	62	280	168	202	73	5	0	0	0	23.1	1.55	0
+bacterial_bin_2	c__Deltaproteobacteria (UID3217)	62	280	168	196	83	1	0	0	0	25.09	0.6	0
+bacterial_bin_3	c__Deltaproteobacteria (UID3217)	62	280	168	117	117	36	6	4	0	57.84	25.63	2.56
+bacterial_bin_4	c__Deltaproteobacteria (UID3217)	62	280	168	213	66	1	0	0	0	16.44	0.6	0
+bacterial_bin_5	k__Bacteria (UID1453)	901	171	117	132	37	2	0	0	0	15.69	0.17	0
+bacterial_bin_6	k__Bacteria (UID1453)	901	171	117	94	67	10	0	0	0	34.33	5.44	20
+bacterial_bin_7	k__Bacteria (UID203)	5449	104	58	82	20	2	0	0	0	17.27	1.72	0
+bacterial_bin_8	k__Bacteria (UID1453)	901	171	117	0	168	3	0	0	0	100	2.14	0

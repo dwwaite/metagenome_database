@@ -8,7 +8,7 @@ class DatabaseExportFactory():
 
     @staticmethod
     def _as_df(df, output_name, identifier):
-        df.to_csv('{}.{}.txt'.format(output_name, identifier), sep='    ', index=False)
+        df.to_csv('{}.{}.txt'.format(output_name, identifier), sep='\t', index=False)
 
     @staticmethod
     def _as_fasta(df, name_column, seq_column, output_name, ext):

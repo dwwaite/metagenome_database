@@ -6,6 +6,7 @@ import sys, argparse
 
 from scripts.DatabaseManipulator import DatabaseManipulator
 from scripts.DatabaseExportFactory import DatabaseExportFactory as export_factory
+from scripts.DatabasePreprocessFactory import DatabasePreprocessFactory as preprocess_factory
 
 def main():
 
@@ -27,6 +28,7 @@ def main():
     populate_add(subparser)
     populate_export(subparser)
     populate_view(subparser)
+    populate_preprocess(subparser)
 
     # Remove/delete subparser
     #parser_remove = subparser.add_parser('remove', help='Remove entries from an existing database')
@@ -39,23 +41,7 @@ def main():
     #parser_remove.add_argument('--bin', help='Bin associations to remove. Removing bins does not affect the underlying contigs/scaffolds', required=False)
 
     args = parser.parse_args()
-
-    ''' Process flow control
-        For options other than create, ensure software and database are compatible before proceeding '''    
-    if args.command == 'create':
-        create_database(args.db, version_str)
-
-    elif args.command == 'add':
-        verify_versions(args.db, version_str)
-        add_features(args.db, version_str, vars(args) )
-
-    elif args.command == 'export':
-        verify_versions(args.db, version_str)
-        export_data(args.db, version_str, args.output, vars(args) )
-
-    elif args.command == 'view':
-        verify_versions(args.db, version_str)
-        summarise_database(args.db, version_str)
+    direct_input(args, version_str)
 
 ###############################################################################
 #region Subparser
@@ -101,10 +87,43 @@ def populate_view(subparser):
     parser_view = subparser.add_parser('view', help='Report the current contents of the database to stdout')
     parser_view.add_argument('-d', '--db', help='Database name', required=True)
 
+def populate_preprocess(subparser):
+    parser_preprocess = subparser.add_parser('preprocess', help='Convert standard output files into the format required for adding to the database')
+    parser_preprocess.add_argument('-o', '--output', help='Target file handle for output files. Feature-specific suffixes will be appended to this value', required=True)
+    parser_preprocess.add_argument('--blast', help='Output file in the standard blast6 tabular format. Converts to input table to the add/annotations function', required=False)
+    parser_preprocess.add_argument('--hmmer', help='Output file in the tblout format from hmmsearch or hmmscan. Converts to input table to the add/annotations function', required=False)
+    parser_preprocess.add_argument('--annot_db', help='Name of the database used in BLAST/HMM annotations. Required if using the \'blast\' or \'hmmer\' parameters', required=False)
+    parser_preprocess.add_argument('--annot_method', help='Specific tool used for creating BLAST/HMM annotations (e.g. BLAST, USEARCH, hmmsearch). Required if using the \'blast\' or \'hmmer\' parameters', required=False)
+    parser_preprocess.add_argument('--checkm', help='Output table from running CheckM with the \'--tab_table\' parameter. Converts to input table to the add/bin_file function', required=False)
+    parser_preprocess.add_argument('--gtdb_bac', help='\'gtdbtk.bac120.summary.tsv\' file from running GTDB-TK. Converts to input table to the add/bin_file function', required=False)
+    parser_preprocess.add_argument('--gtdb_arch', help='\'gtdbtk.arch122.summary.tsv\' file from running GTDB-TK. Converts to input table to the add/bin_file function', required=False)
+
 #endregion
 ###############################################################################
 #region User input flow control
 #   Parse the user parameters into commands to the DatabaseManipulator
+def direct_input(args, db_version):
+
+    ''' Process flow control
+        For options other than create, ensure software and database are compatible before proceeding '''    
+    if args.command == 'create':
+        create_database(args.db, db_version)
+
+    elif args.command == 'preprocess':
+            preprocess_inputs( vars(args) )
+
+    else:
+        verify_versions(args.db, db_version)
+
+        if args.command == 'add':
+            add_features(args.db, db_version, vars(args) )
+
+        elif args.command == 'export':
+            export_data(args.db, db_version, args.output, vars(args) )
+
+        elif args.command == 'view':
+            summarise_database(args.db, db_version)
+
 def create_database(db_name, db_version):
 
         ''' Open a connection and create the blank tables '''
@@ -219,6 +238,37 @@ def summarise_database(db_name, db_version):
 
     except Exception as e:
         print( 'Error encountered: {}'.format(e))
+
+def _verify_required_process_args(params, *args):
+
+    for a in args:
+        assert params[a] is not None, 'Missing required parameter {}. Aborting...'.format(a)
+
+def preprocess_inputs(preprocess_params):
+
+    try:
+
+        if preprocess_params['blast']:
+
+            ''' Verify that required co-parameters exist '''
+            _verify_required_process_args(preprocess_params, 'annot_db', 'annot_method')
+            preprocess_factory.blast_to_df(preprocess_params['blast'], preprocess_params['annot_db'], preprocess_params['annot_method'], preprocess_params['output'])
+
+        if preprocess_params['hmmer']:
+
+            _verify_required_process_args(preprocess_params, 'annot_db', 'annot_method')
+            preprocess_factory.hmm_to_df(preprocess_params['hmmer'], preprocess_params['annot_db'], preprocess_params['annot_method'], preprocess_params['output'])
+
+        if preprocess_params['checkm'] or preprocess_params['gtdb_bac'] or preprocess_params['gtdb_arch']:
+
+            _verify_required_process_args(preprocess_params, 'checkm')
+            preprocess_factory.gtdb_to_df(preprocess_params['checkm'],
+                                          preprocess_params['output'],
+                                          bact_file=preprocess_params['gtdb_bac'],
+                                          arch_file=preprocess_params['gtdb_arch'])
+
+    except Exception as e:
+        print( 'Error: {}'.format(e))
 
 #endregion
 ###############################################################################
